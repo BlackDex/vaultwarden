@@ -1,7 +1,7 @@
 //
 // Error generator macro
 //
-use crate::db::models::EventType;
+// use crate::db::models::EventType;
 use std::error::Error as StdError;
 
 macro_rules! make_error {
@@ -11,7 +11,7 @@ macro_rules! make_error {
         pub enum ErrorKind { $($name( $ty )),+ }
 
         #[derive(Debug)]
-        pub struct ErrorEvent { pub event: EventType }
+        pub struct ErrorEvent { pub event: String }
         pub struct Error { message: String, error: ErrorKind, error_code: u16, event: Option<ErrorEvent> }
 
         $(impl From<$ty> for Error {
@@ -41,7 +41,7 @@ use diesel::r2d2::PoolError as R2d2Err;
 use diesel::result::Error as DieselErr;
 use diesel::ConnectionError as DieselConErr;
 use handlebars::RenderError as HbErr;
-use jsonwebtoken::errors::Error as JwtErr;
+// use jsonwebtoken::errors::Error as JwtErr;
 use lettre::address::AddressError as AddrErr;
 use lettre::error::Error as LettreErr;
 use lettre::transport::smtp::Error as SmtpErr;
@@ -52,8 +52,8 @@ use rocket::error::Error as RocketErr;
 use serde_json::{Error as SerdeErr, Value};
 use std::io::Error as IoErr;
 use std::time::SystemTimeError as TimeErr;
-use tokio_tungstenite::tungstenite::Error as TungstError;
-use webauthn_rs::error::WebauthnError as WebauthnErr;
+// use tokio_tungstenite::tungstenite::Error as TungstError;
+// use webauthn_rs::error::WebauthnError as WebauthnErr;
 use yubico::yubicoerror::YubicoError as YubiErr;
 
 #[derive(Serialize)]
@@ -74,7 +74,7 @@ make_error! {
     Db(DieselErr):   _has_source, _api_error,
     R2d2(R2d2Err):   _has_source, _api_error,
     Serde(SerdeErr): _has_source, _api_error,
-    JWt(JwtErr):     _has_source, _api_error,
+    // JWt(JwtErr):     _has_source, _api_error,
     Handlebars(HbErr): _has_source, _api_error,
 
     Io(IoErr):       _has_source, _api_error,
@@ -90,8 +90,8 @@ make_error! {
     Rocket(RocketErr): _has_source, _api_error,
 
     DieselCon(DieselConErr): _has_source, _api_error,
-    Webauthn(WebauthnErr):   _has_source, _api_error,
-    WebSocket(TungstError):  _has_source, _api_error,
+    // Webauthn(WebauthnErr):   _has_source, _api_error,
+    // WebSocket(TungstError):  _has_source, _api_error,
 }
 
 impl std::fmt::Debug for Error {

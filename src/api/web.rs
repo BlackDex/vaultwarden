@@ -1,13 +1,15 @@
 use std::path::{Path, PathBuf};
 
-use rocket::{fs::NamedFile, http::ContentType, response::content::RawHtml as Html, serde::json::Json, Catcher, Route};
+use rocket::{fs::NamedFile, http::ContentType, /*response::content::RawHtml as Html,*/ serde::json::Json, /*Catcher,*/ Route};
 use serde_json::Value;
 
 use crate::{
-    api::{core::now, ApiResult, EmptyResult},
-    auth::decode_file_download,
+    // api::{/*core::now,*/ ApiResult, EmptyResult},
+    api::EmptyResult,
+    // auth::decode_file_download,
     error::Error,
-    util::{Cached, SafeString},
+    // util::{Cached/, SafeString},
+    util::Cached,
     CONFIG,
 };
 
@@ -15,29 +17,29 @@ pub fn routes() -> Vec<Route> {
     // If addding more routes here, consider also adding them to
     // crate::utils::LOGGED_ROUTES to make sure they appear in the log
     if CONFIG.web_vault_enabled() {
-        routes![web_index, web_index_head, app_id, web_files, attachments, alive, alive_head, static_files]
+        routes![web_index, web_index_head, app_id, web_files, alive, alive_head, static_files]
     } else {
-        routes![attachments, alive, alive_head, static_files]
+        routes![alive, alive_head, static_files]
     }
 }
 
-pub fn catchers() -> Vec<Catcher> {
-    if CONFIG.web_vault_enabled() {
-        catchers![not_found]
-    } else {
-        catchers![]
-    }
-}
+// pub fn catchers() -> Vec<Catcher> {
+//     if CONFIG.web_vault_enabled() {
+//         catchers![not_found]
+//     } else {
+//         catchers![]
+//     }
+// }
 
-#[catch(404)]
-fn not_found() -> ApiResult<Html<String>> {
-    // Return the page
-    let json = json!({
-        "urlpath": CONFIG.domain_path()
-    });
-    let text = CONFIG.render_template("404", &json)?;
-    Ok(Html(text))
-}
+// #[catch(404)]
+// fn not_found() -> ApiResult<Html<String>> {
+//     // Return the page
+//     let json = json!({
+//         "urlpath": CONFIG.domain_path()
+//     });
+//     let text = CONFIG.render_template("404", &json)?;
+//     Ok(Html(text))
+// }
 
 #[get("/")]
 async fn web_index() -> Cached<Option<NamedFile>> {
@@ -92,21 +94,21 @@ async fn web_files(p: PathBuf) -> Cached<Option<NamedFile>> {
     Cached::long(NamedFile::open(Path::new(&CONFIG.web_vault_folder()).join(p)).await.ok(), true)
 }
 
-#[get("/attachments/<uuid>/<file_id>?<token>")]
-async fn attachments(uuid: SafeString, file_id: SafeString, token: String) -> Option<NamedFile> {
-    let Ok(claims) = decode_file_download(&token) else { return None };
-    if claims.sub != *uuid || claims.file_id != *file_id {
-        return None;
-    }
+// #[get("/attachments/<uuid>/<file_id>?<token>")]
+// async fn attachments(uuid: SafeString, file_id: SafeString, token: String) -> Option<NamedFile> {
+//     let Ok(claims) = decode_file_download(&token) else { return None };
+//     if claims.sub != *uuid || claims.file_id != *file_id {
+//         return None;
+//     }
 
-    NamedFile::open(Path::new(&CONFIG.attachments_folder()).join(uuid).join(file_id)).await.ok()
-}
+//     NamedFile::open(Path::new(&CONFIG.attachments_folder()).join(uuid).join(file_id)).await.ok()
+// }
 
 // We use DbConn here to let the alive healthcheck also verify the database connection.
 use crate::db::DbConn;
 #[get("/alive")]
 fn alive(_conn: DbConn) -> Json<String> {
-    now()
+    Json(String::from("now"))
 }
 
 #[head("/alive")]

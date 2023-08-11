@@ -5,22 +5,20 @@ use std::env;
 
 use rocket::serde::json::Json;
 use rocket::{
-    form::Form,
-    http::{Cookie, CookieJar, MediaType, SameSite, Status},
+    // form::Form,
+    http::{Cookie, CookieJar, /*MediaType, SameSite,*/ Status},
     request::{FromRequest, Outcome, Request},
     response::{content::RawHtml as Html, Redirect},
-    Catcher, Route,
+    /*Catcher,*/ Route,
 };
 
 use crate::{
-    api::{core::log_event, unregister_push_device, ApiResult, EmptyResult, JsonResult, Notify, NumberOrString},
-    auth::{decode_admin, encode_jwt, generate_admin_claims, ClientIp},
+    api::{ApiResult, EmptyResult, JsonResult, NumberOrString},
     config::ConfigBuilder,
     db::{backup_database, get_sql_server_version, models::*, DbConn, DbConnType},
     error::{Error, MapResult},
-    mail,
     util::{
-        docker_base_image, format_naive_datetime_local, get_display_size, get_reqwest_client, is_running_in_docker,
+        docker_base_image, format_naive_datetime_local, /*get_display_size,*/ get_reqwest_client, is_running_in_docker,
     },
     CONFIG, VERSION,
 };
@@ -34,7 +32,7 @@ pub fn routes() -> Vec<Route> {
         get_users_json,
         get_user_json,
         get_user_by_mail_json,
-        post_admin_login,
+        // post_admin_login,
         admin_page,
         admin_page_login,
         invite_user,
@@ -59,13 +57,13 @@ pub fn routes() -> Vec<Route> {
     ]
 }
 
-pub fn catchers() -> Vec<Catcher> {
-    if !CONFIG.disable_admin_token() && !CONFIG.is_admin_token_set() {
-        catchers![]
-    } else {
-        catchers![admin_login]
-    }
-}
+// pub fn catchers() -> Vec<Catcher> {
+//     if !CONFIG.disable_admin_token() && !CONFIG.is_admin_token_set() {
+//         catchers![]
+//     } else {
+//         catchers![admin_login]
+//     }
+// }
 
 static DB_TYPE: Lazy<&str> = Lazy::new(|| {
     DbConnType::from_url(&CONFIG.database_url())
@@ -91,7 +89,7 @@ const DT_FMT: &str = "%Y-%m-%d %H:%M:%S %Z";
 
 const BASE_TEMPLATE: &str = "admin/base";
 
-const ACTING_ADMIN_USER: &str = "vaultwarden-admin-00000-000000000000";
+// const ACTING_ADMIN_USER: &str = "vaultwarden-admin-00000-000000000000";
 
 fn admin_path() -> String {
     format!("{}{}", CONFIG.domain_path(), ADMIN_PATH)
@@ -123,24 +121,24 @@ fn admin_url() -> String {
     format!("{}{}", CONFIG.domain_origin(), admin_path())
 }
 
-#[derive(Responder)]
-enum AdminResponse {
-    #[response(status = 200)]
-    Ok(ApiResult<Html<String>>),
-    #[response(status = 401)]
-    Unauthorized(ApiResult<Html<String>>),
-    #[response(status = 429)]
-    TooManyRequests(ApiResult<Html<String>>),
-}
+// #[derive(Responder)]
+// enum AdminResponse {
+//     #[response(status = 200)]
+//     Ok(ApiResult<Html<String>>),
+//     #[response(status = 401)]
+//     Unauthorized(ApiResult<Html<String>>),
+//     #[response(status = 429)]
+//     TooManyRequests(ApiResult<Html<String>>),
+// }
 
-#[catch(401)]
-fn admin_login(request: &Request<'_>) -> ApiResult<Html<String>> {
-    if request.format() == Some(&MediaType::JSON) {
-        err_code!("Authorization failed.", Status::Unauthorized.code);
-    }
-    let redirect = request.segments::<std::path::PathBuf>(0..).unwrap_or_default().display().to_string();
-    render_admin_login(None, Some(redirect))
-}
+// #[catch(401)]
+// fn admin_login(request: &Request<'_>) -> ApiResult<Html<String>> {
+//     if request.format() == Some(&MediaType::JSON) {
+//         err_code!("Authorization failed.", Status::Unauthorized.code);
+//     }
+//     let redirect = request.segments::<std::path::PathBuf>(0..).unwrap_or_default().display().to_string();
+//     render_admin_login(None, Some(redirect))
+// }
 
 fn render_admin_login(msg: Option<&str>, redirect: Option<String>) -> ApiResult<Html<String>> {
     // If there is an error, show it
@@ -157,48 +155,48 @@ fn render_admin_login(msg: Option<&str>, redirect: Option<String>) -> ApiResult<
     Ok(Html(text))
 }
 
-#[derive(FromForm)]
-struct LoginForm {
-    token: String,
-    redirect: Option<String>,
-}
+// #[derive(FromForm)]
+// struct LoginForm {
+//     token: String,
+//     redirect: Option<String>,
+// }
 
-#[post("/", data = "<data>")]
-fn post_admin_login(data: Form<LoginForm>, cookies: &CookieJar<'_>, ip: ClientIp) -> Result<Redirect, AdminResponse> {
-    let data = data.into_inner();
-    let redirect = data.redirect;
+// #[post("/", data = "<data>")]
+// fn post_admin_login(data: Form<LoginForm>, cookies: &CookieJar<'_>) -> Result<Redirect, AdminResponse> {
+//     let data = data.into_inner();
+//     let redirect = data.redirect;
 
-    if crate::ratelimit::check_limit_admin(&ip.ip).is_err() {
-        return Err(AdminResponse::TooManyRequests(render_admin_login(
-            Some("Too many requests, try again later."),
-            redirect,
-        )));
-    }
+//     if crate::ratelimit::check_limit_admin(&ip.ip).is_err() {
+//         return Err(AdminResponse::TooManyRequests(render_admin_login(
+//             Some("Too many requests, try again later."),
+//             redirect,
+//         )));
+//     }
 
-    // If the token is invalid, redirect to login page
-    if !_validate_token(&data.token) {
-        error!("Invalid admin token. IP: {}", ip.ip);
-        Err(AdminResponse::Unauthorized(render_admin_login(Some("Invalid admin token, please try again."), redirect)))
-    } else {
-        // If the token received is valid, generate JWT and save it as a cookie
-        let claims = generate_admin_claims();
-        let jwt = encode_jwt(&claims);
+//     // If the token is invalid, redirect to login page
+//     if !_validate_token(&data.token) {
+//         error!("Invalid admin token. IP: {}", ip.ip);
+//         Err(AdminResponse::Unauthorized(render_admin_login(Some("Invalid admin token, please try again."), redirect)))
+//     } else {
+//         // If the token received is valid, generate JWT and save it as a cookie
+//         let claims = generate_admin_claims();
+//         let jwt = encode_jwt(&claims);
 
-        let cookie = Cookie::build(COOKIE_NAME, jwt)
-            .path(admin_path())
-            .max_age(rocket::time::Duration::minutes(CONFIG.admin_session_lifetime()))
-            .same_site(SameSite::Strict)
-            .http_only(true)
-            .finish();
+//         let cookie = Cookie::build(COOKIE_NAME, jwt)
+//             .path(admin_path())
+//             .max_age(rocket::time::Duration::minutes(CONFIG.admin_session_lifetime()))
+//             .same_site(SameSite::Strict)
+//             .http_only(true)
+//             .finish();
 
-        cookies.add(cookie);
-        if let Some(redirect) = redirect {
-            Ok(Redirect::to(format!("{}{}", admin_path(), redirect)))
-        } else {
-            Err(AdminResponse::Ok(render_admin_page()))
-        }
-    }
-}
+//         cookies.add(cookie);
+//         if let Some(redirect) = redirect {
+//             Ok(Redirect::to(format!("{}{}", admin_path(), redirect)))
+//         } else {
+//             Err(AdminResponse::Ok(render_admin_page()))
+//         }
+//     }
+// }
 
 fn _validate_token(token: &str) -> bool {
     match CONFIG.admin_token().as_ref() {
@@ -288,7 +286,8 @@ async fn invite_user(data: Json<InviteData>, _token: AdminToken, mut conn: DbCon
 
     async fn _generate_invite(user: &User, conn: &mut DbConn) -> EmptyResult {
         if CONFIG.mail_enabled() {
-            mail::send_invite(&user.email, &user.uuid, None, None, &CONFIG.invitation_org_name(), None).await
+            // mail::send_invite(&user.email, &user.uuid, None, None, &CONFIG.invitation_org_name(), None).await
+            Ok(())
         } else {
             let invitation = Invitation::new(&user.email);
             invitation.save(conn).await
@@ -303,10 +302,11 @@ async fn invite_user(data: Json<InviteData>, _token: AdminToken, mut conn: DbCon
 
 #[post("/test/smtp", data = "<data>")]
 async fn test_smtp(data: Json<InviteData>, _token: AdminToken) -> EmptyResult {
-    let data: InviteData = data.into_inner();
+    let _data: InviteData = data.into_inner();
 
     if CONFIG.mail_enabled() {
-        mail::send_test(&data.email).await
+        // mail::send_test(&data.email).await
+        Ok(())
     } else {
         err!("Mail is not enabled")
     }
@@ -338,9 +338,12 @@ async fn users_overview(_token: AdminToken, mut conn: DbConn) -> ApiResult<Html<
     let mut users_json = Vec::with_capacity(users.len());
     for u in users {
         let mut usr = u.to_json(&mut conn).await;
-        usr["cipher_count"] = json!(Cipher::count_owned_by_user(&u.uuid, &mut conn).await);
-        usr["attachment_count"] = json!(Attachment::count_by_user(&u.uuid, &mut conn).await);
-        usr["attachment_size"] = json!(get_display_size(Attachment::size_by_user(&u.uuid, &mut conn).await as i32));
+        // usr["cipher_count"] = json!(Cipher::count_owned_by_user(&u.uuid, &mut conn).await);
+        // usr["attachment_count"] = json!(Attachment::count_by_user(&u.uuid, &mut conn).await);
+        // usr["attachment_size"] = json!(get_display_size(Attachment::size_by_user(&u.uuid, &mut conn).await as i32));
+        usr["cipher_count"] = json!(());
+        usr["attachment_count"] = json!(());
+        usr["attachment_size"] = json!(());
         usr["user_enabled"] = json!(u.enabled);
         usr["created_at"] = json!(format_naive_datetime_local(&u.created_at, DT_FMT));
         usr["last_active"] = match u.last_active(&mut conn).await {
@@ -376,43 +379,43 @@ async fn get_user_json(uuid: &str, _token: AdminToken, mut conn: DbConn) -> Json
 }
 
 #[post("/users/<uuid>/delete")]
-async fn delete_user(uuid: &str, token: AdminToken, mut conn: DbConn) -> EmptyResult {
+async fn delete_user(uuid: &str, _token: AdminToken, mut conn: DbConn) -> EmptyResult {
     let user = get_user_or_404(uuid, &mut conn).await?;
 
     // Get the user_org records before deleting the actual user
-    let user_orgs = UserOrganization::find_any_state_by_user(uuid, &mut conn).await;
+    // let user_orgs = UserOrganization::find_any_state_by_user(uuid, &mut conn).await;
     let res = user.delete(&mut conn).await;
 
-    for user_org in user_orgs {
-        log_event(
-            EventType::OrganizationUserRemoved as i32,
-            &user_org.uuid,
-            &user_org.org_uuid,
-            String::from(ACTING_ADMIN_USER),
-            14, // Use UnknownBrowser type
-            &token.ip.ip,
-            &mut conn,
-        )
-        .await;
-    }
+    // for user_org in user_orgs {
+    //     log_event(
+    //         EventType::OrganizationUserRemoved as i32,
+    //         &user_org.uuid,
+    //         &user_org.org_uuid,
+    //         String::from(ACTING_ADMIN_USER),
+    //         14, // Use UnknownBrowser type
+    //         &token.ip.ip,
+    //         &mut conn,
+    //     )
+    //     .await;
+    // }
 
     res
 }
 
 #[post("/users/<uuid>/deauth")]
-async fn deauth_user(uuid: &str, _token: AdminToken, mut conn: DbConn, nt: Notify<'_>) -> EmptyResult {
+async fn deauth_user(uuid: &str, _token: AdminToken, mut conn: DbConn) -> EmptyResult {
     let mut user = get_user_or_404(uuid, &mut conn).await?;
 
-    nt.send_logout(&user, None).await;
+    // nt.send_logout(&user, None).await;
 
-    if CONFIG.push_enabled() {
-        for device in Device::find_push_devices_by_user(&user.uuid, &mut conn).await {
-            match unregister_push_device(device.uuid).await {
-                Ok(r) => r,
-                Err(e) => error!("Unable to unregister devices from Bitwarden server: {}", e),
-            };
-        }
-    }
+    // if CONFIG.push_enabled() {
+    //     for device in Device::find_push_devices_by_user(&user.uuid, &mut conn).await {
+    //         match unregister_push_device(device.uuid).await {
+    //             Ok(r) => r,
+    //             Err(e) => error!("Unable to unregister devices from Bitwarden server: {}", e),
+    //         };
+    //     }
+    // }
 
     Device::delete_all_by_user(&user.uuid, &mut conn).await?;
     user.reset_security_stamp();
@@ -421,17 +424,18 @@ async fn deauth_user(uuid: &str, _token: AdminToken, mut conn: DbConn, nt: Notif
 }
 
 #[post("/users/<uuid>/disable")]
-async fn disable_user(uuid: &str, _token: AdminToken, mut conn: DbConn, nt: Notify<'_>) -> EmptyResult {
+async fn disable_user(uuid: &str, _token: AdminToken, mut conn: DbConn) -> EmptyResult {
     let mut user = get_user_or_404(uuid, &mut conn).await?;
     Device::delete_all_by_user(&user.uuid, &mut conn).await?;
     user.reset_security_stamp();
     user.enabled = false;
 
-    let save_result = user.save(&mut conn).await;
+    // let save_result = user.save(&mut conn).await;
+    user.save(&mut conn).await
 
-    nt.send_logout(&user, None).await;
+    // nt.send_logout(&user, None).await;
 
-    save_result
+    // save_result
 }
 
 #[post("/users/<uuid>/enable")]
@@ -445,7 +449,7 @@ async fn enable_user(uuid: &str, _token: AdminToken, mut conn: DbConn) -> EmptyR
 #[post("/users/<uuid>/remove-2fa")]
 async fn remove_2fa(uuid: &str, _token: AdminToken, mut conn: DbConn) -> EmptyResult {
     let mut user = get_user_or_404(uuid, &mut conn).await?;
-    TwoFactor::delete_all_by_user(&user.uuid, &mut conn).await?;
+    // TwoFactor::delete_all_by_user(&user.uuid, &mut conn).await?;
     user.totp_recover = None;
     user.save(&mut conn).await
 }
@@ -459,7 +463,8 @@ async fn resend_user_invite(uuid: &str, _token: AdminToken, mut conn: DbConn) ->
         }
 
         if CONFIG.mail_enabled() {
-            mail::send_invite(&user.email, &user.uuid, None, None, &CONFIG.invitation_org_name(), None).await
+            // mail::send_invite(&user.email, &user.uuid, None, None, &CONFIG.invitation_org_name(), None).await
+            Ok(())
         } else {
             Ok(())
         }
@@ -476,7 +481,7 @@ struct UserOrgTypeData {
 }
 
 #[post("/users/org_type", data = "<data>")]
-async fn update_user_org_type(data: Json<UserOrgTypeData>, token: AdminToken, mut conn: DbConn) -> EmptyResult {
+async fn update_user_org_type(data: Json<UserOrgTypeData>, _token: AdminToken, mut conn: DbConn) -> EmptyResult {
     let data: UserOrgTypeData = data.into_inner();
 
     let mut user_to_edit =
@@ -499,28 +504,28 @@ async fn update_user_org_type(data: Json<UserOrgTypeData>, token: AdminToken, mu
 
     // This check is also done at api::organizations::{accept_invite(), _confirm_invite, _activate_user(), edit_user()}, update_user_org_type
     // It returns different error messages per function.
-    if new_type < UserOrgType::Admin {
-        match OrgPolicy::is_user_allowed(&user_to_edit.user_uuid, &user_to_edit.org_uuid, true, &mut conn).await {
-            Ok(_) => {}
-            Err(OrgPolicyErr::TwoFactorMissing) => {
-                err!("You cannot modify this user to this type because it has no two-step login method activated");
-            }
-            Err(OrgPolicyErr::SingleOrgEnforced) => {
-                err!("You cannot modify this user to this type because it is a member of an organization which forbids it");
-            }
-        }
-    }
+    // if new_type < UserOrgType::Admin {
+    //     match OrgPolicy::is_user_allowed(&user_to_edit.user_uuid, &user_to_edit.org_uuid, true, &mut conn).await {
+    //         Ok(_) => {}
+    //         Err(OrgPolicyErr::TwoFactorMissing) => {
+    //             err!("You cannot modify this user to this type because it has no two-step login method activated");
+    //         }
+    //         Err(OrgPolicyErr::SingleOrgEnforced) => {
+    //             err!("You cannot modify this user to this type because it is a member of an organization which forbids it");
+    //         }
+    //     }
+    // }
 
-    log_event(
-        EventType::OrganizationUserUpdated as i32,
-        &user_to_edit.uuid,
-        &data.org_uuid,
-        String::from(ACTING_ADMIN_USER),
-        14, // Use UnknownBrowser type
-        &token.ip.ip,
-        &mut conn,
-    )
-    .await;
+    // log_event(
+    //     EventType::OrganizationUserUpdated as i32,
+    //     &user_to_edit.uuid,
+    //     &data.org_uuid,
+    //     String::from(ACTING_ADMIN_USER),
+    //     14, // Use UnknownBrowser type
+    //     &token.ip.ip,
+    //     &mut conn,
+    // )
+    // .await;
 
     user_to_edit.atype = new_type;
     user_to_edit.save(&mut conn).await
@@ -538,12 +543,19 @@ async fn organizations_overview(_token: AdminToken, mut conn: DbConn) -> ApiResu
     for o in organizations {
         let mut org = o.to_json();
         org["user_count"] = json!(UserOrganization::count_by_org(&o.uuid, &mut conn).await);
-        org["cipher_count"] = json!(Cipher::count_by_org(&o.uuid, &mut conn).await);
-        org["collection_count"] = json!(Collection::count_by_org(&o.uuid, &mut conn).await);
-        org["group_count"] = json!(Group::count_by_org(&o.uuid, &mut conn).await);
-        org["event_count"] = json!(Event::count_by_org(&o.uuid, &mut conn).await);
-        org["attachment_count"] = json!(Attachment::count_by_org(&o.uuid, &mut conn).await);
-        org["attachment_size"] = json!(get_display_size(Attachment::size_by_org(&o.uuid, &mut conn).await as i32));
+        // org["cipher_count"] = json!(Cipher::count_by_org(&o.uuid, &mut conn).await);
+        // org["collection_count"] = json!(Collection::count_by_org(&o.uuid, &mut conn).await);
+        // org["group_count"] = json!(Group::count_by_org(&o.uuid, &mut conn).await);
+        // org["event_count"] = json!(Event::count_by_org(&o.uuid, &mut conn).await);
+        // org["attachment_count"] = json!(Attachment::count_by_org(&o.uuid, &mut conn).await);
+        // org["attachment_size"] = json!(get_display_size(Attachment::size_by_org(&o.uuid, &mut conn).await as i32));
+
+        org["cipher_count"] = json!(());
+        org["collection_count"] = json!(());
+        org["group_count"] = json!(());
+        org["event_count"] = json!(());
+        org["attachment_count"] = json!(());
+        org["attachment_size"] = json!(());
         organizations_json.push(org);
     }
 
@@ -752,52 +764,46 @@ async fn backup_db(_token: AdminToken, mut conn: DbConn) -> EmptyResult {
     }
 }
 
-pub struct AdminToken {
-    ip: ClientIp,
-}
+pub struct AdminToken {}
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for AdminToken {
     type Error = &'static str;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let ip = match ClientIp::from_request(request).await {
-            Outcome::Success(ip) => ip,
-            _ => err_handler!("Error getting Client IP"),
-        };
+        // let ip = match ClientIp::from_request(request).await {
+        //     Outcome::Success(ip) => ip,
+        //     _ => err_handler!("Error getting Client IP"),
+        // };
 
         if CONFIG.disable_admin_token() {
-            Outcome::Success(Self {
-                ip,
-            })
+            Outcome::Success(Self {})
         } else {
-            let cookies = request.cookies();
+            let _cookies = request.cookies();
 
-            let access_token = match cookies.get(COOKIE_NAME) {
-                Some(cookie) => cookie.value(),
-                None => {
-                    let requested_page =
-                        request.segments::<std::path::PathBuf>(0..).unwrap_or_default().display().to_string();
-                    // When the requested page is empty, it is `/admin`, in that case, Forward, so it will render the login page
-                    // Else, return a 401 failure, which will be caught
-                    if requested_page.is_empty() {
-                        return Outcome::Forward(Status::Unauthorized);
-                    } else {
-                        return Outcome::Failure((Status::Unauthorized, "Unauthorized"));
-                    }
-                }
-            };
+            // let access_token = match cookies.get(COOKIE_NAME) {
+            //     Some(cookie) => cookie.value(),
+            //     None => {
+            //         let requested_page =
+            //             request.segments::<std::path::PathBuf>(0..).unwrap_or_default().display().to_string();
+            //         // When the requested page is empty, it is `/admin`, in that case, Forward, so it will render the login page
+            //         // Else, return a 401 failure, which will be caught
+            //         if requested_page.is_empty() {
+            //             return Outcome::Forward(Status::Unauthorized);
+            //         } else {
+            //             return Outcome::Failure((Status::Unauthorized, "Unauthorized"));
+            //         }
+            //     }
+            // };
 
-            if decode_admin(access_token).is_err() {
-                // Remove admin cookie
-                cookies.remove(Cookie::build(COOKIE_NAME, "").path(admin_path()).finish());
-                error!("Invalid or expired admin JWT. IP: {}.", &ip.ip);
-                return Outcome::Failure((Status::Unauthorized, "Session expired"));
-            }
+            // if decode_admin(access_token).is_err() {
+            //     // Remove admin cookie
+            //     cookies.remove(Cookie::build(COOKIE_NAME, "").path(admin_path()).finish());
+            //     error!("Invalid or expired admin JWT. IP: {}.", &ip.ip);
+            //     return Outcome::Failure((Status::Unauthorized, "Session expired"));
+            // }
 
-            Outcome::Success(Self {
-                ip,
-            })
+            Outcome::Success(Self {})
         }
     }
 }

@@ -64,7 +64,7 @@ db_object! {
 
 pub enum UserKdfType {
     Pbkdf2 = 0,
-    Argon2id = 1,
+    // Argon2id = 1,
 }
 
 enum UserStatus {
@@ -226,7 +226,7 @@ impl User {
 }
 
 use super::{
-    Cipher, Device, EmergencyAccess, Favorite, Folder, Send, TwoFactor, TwoFactorIncomplete, UserOrgType,
+    /*Cipher,*/ Device, /*EmergencyAccess, Favorite, Folder, Send, TwoFactor, TwoFactorIncomplete,*/ UserOrgType,
     UserOrganization,
 };
 use crate::db::DbConn;
@@ -242,7 +242,8 @@ impl User {
             orgs_json.push(c.to_json(conn).await);
         }
 
-        let twofactor_enabled = !TwoFactor::find_by_user(&self.uuid, conn).await.is_empty();
+        // let twofactor_enabled = !TwoFactor::find_by_user(&self.uuid, conn).await.is_empty();
+        let twofactor_enabled = false;
 
         // TODO: Might want to save the status field in the DB
         let status = if self.password_hash.is_empty() {
@@ -321,15 +322,15 @@ impl User {
             }
         }
 
-        Send::delete_all_by_user(&self.uuid, conn).await?;
-        EmergencyAccess::delete_all_by_user(&self.uuid, conn).await?;
+        // Send::delete_all_by_user(&self.uuid, conn).await?;
+        // EmergencyAccess::delete_all_by_user(&self.uuid, conn).await?;
         UserOrganization::delete_all_by_user(&self.uuid, conn).await?;
-        Cipher::delete_all_by_user(&self.uuid, conn).await?;
-        Favorite::delete_all_by_user(&self.uuid, conn).await?;
-        Folder::delete_all_by_user(&self.uuid, conn).await?;
+        // Cipher::delete_all_by_user(&self.uuid, conn).await?;
+        // Favorite::delete_all_by_user(&self.uuid, conn).await?;
+        // Folder::delete_all_by_user(&self.uuid, conn).await?;
         Device::delete_all_by_user(&self.uuid, conn).await?;
-        TwoFactor::delete_all_by_user(&self.uuid, conn).await?;
-        TwoFactorIncomplete::delete_all_by_user(&self.uuid, conn).await?;
+        // TwoFactor::delete_all_by_user(&self.uuid, conn).await?;
+        // TwoFactorIncomplete::delete_all_by_user(&self.uuid, conn).await?;
         Invitation::take(&self.email, conn).await; // Delete invitation if any
 
         db_run! {conn: {

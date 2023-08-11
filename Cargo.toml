@@ -57,14 +57,14 @@ num-derive = "0.4.0"
 # Web framework
 rocket = { version = "0.5.0-rc.3", features = ["tls", "json"], default-features = false }
 # rocket_ws = { version ="0.1.0-rc.3" }
-rocket_ws = { git = 'https://github.com/SergioBenitez/Rocket', rev = "ce441b5f46fdf5cd99cb32b8b8638835e4c2a5fa" } # v0.5 branch
+# rocket_ws = { git = 'https://github.com/SergioBenitez/Rocket', rev = "ce441b5f46fdf5cd99cb32b8b8638835e4c2a5fa" } # v0.5 branch
 
 # WebSockets libraries
-tokio-tungstenite = "0.19.0"
-rmpv = "1.0.1" # MessagePack library
+# tokio-tungstenite = "0.19.0"
+# rmpv = "1.0.1" # MessagePack library
 
 # Concurrent HashMap used for WebSocket messaging and favicons
-dashmap = "5.5.0"
+# dashmap = "5.5.0"
 
 # Async futures
 futures = "0.3.28"
@@ -95,22 +95,22 @@ chrono-tz = "0.8.3"
 time = "0.3.25"
 
 # Job scheduler
-job_scheduler_ng = "2.0.4"
+# job_scheduler_ng = "2.0.4"
 
 # Data encoding library Hex/Base32/Base64
 data-encoding = "2.4.0"
 
 # JWT library
-jsonwebtoken = "8.3.0"
+# jsonwebtoken = "8.3.0"
 
 # TOTP library
-totp-lite = "2.0.0"
+# totp-lite = "2.0.0"
 
 # Yubico Library
 yubico = { version = "0.11.0", features = ["online-tokio"], default-features = false }
 
 # WebAuthn libraries
-webauthn-rs = "0.3.2"
+# webauthn-rs = "0.3.2"
 
 # Handling of URL's for WebAuthn and favicons
 url = "2.4.0"
@@ -127,9 +127,9 @@ handlebars = { version = "4.3.7", features = ["dir_source"] }
 reqwest = { version = "0.11.18", features = ["stream", "json", "gzip", "brotli", "socks", "cookies", "trust-dns"] }
 
 # Favicon extraction libraries
-html5gum = "0.5.7"
+# html5gum = "0.5.7"
 regex = { version = "1.9.3", features = ["std", "perf", "unicode-perl"], default-features = false }
-data-url = "0.3.0"
+# data-url = "0.3.0"
 bytes = "1.4.0"
 
 # Cache function results (Used for version check and favicon fetching)
@@ -137,7 +137,7 @@ cached = "0.44.0"
 
 # Used for custom short lived cookie jar during favicon extraction
 cookie = "0.16.2"
-cookie_store = "0.19.1"
+# cookie_store = "0.19.1"
 
 # Used by U2F, JWT and PostgreSQL
 openssl = "0.10.56"
@@ -147,10 +147,10 @@ pico-args = "0.5.0"
 
 # Macro ident concatenation
 paste = "1.0.14"
-governor = "0.6.0"
+# governor = "0.6.0"
 
 # Check client versions for specific features.
-semver = "1.0.18"
+# semver = "1.0.18"
 
 # Allow overriding the default memory allocator
 # Mainly used for the musl builds, since the default musl malloc is very slow

@@ -3,7 +3,8 @@ use num_traits::FromPrimitive;
 use serde_json::Value;
 use std::cmp::Ordering;
 
-use super::{CollectionUser, Group, GroupUser, OrgPolicy, OrgPolicyType, TwoFactor, User};
+// use super::{CollectionUser, Group, GroupUser, OrgPolicy, OrgPolicyType, TwoFactor, User};
+use super::User;
 use crate::CONFIG;
 
 db_object! {
@@ -290,13 +291,13 @@ impl Organization {
     }
 
     pub async fn delete(self, conn: &mut DbConn) -> EmptyResult {
-        use super::{Cipher, Collection};
+        // use super::{Cipher, Collection};
 
-        Cipher::delete_all_by_organization(&self.uuid, conn).await?;
-        Collection::delete_all_by_organization(&self.uuid, conn).await?;
+        // Cipher::delete_all_by_organization(&self.uuid, conn).await?;
+        // Collection::delete_all_by_organization(&self.uuid, conn).await?;
         UserOrganization::delete_all_by_organization(&self.uuid, conn).await?;
-        OrgPolicy::delete_all_by_organization(&self.uuid, conn).await?;
-        Group::delete_all_by_organization(&self.uuid, conn).await?;
+        // OrgPolicy::delete_all_by_organization(&self.uuid, conn).await?;
+        // Group::delete_all_by_organization(&self.uuid, conn).await?;
 
         db_run! { conn: {
             diesel::delete(organizations::table.filter(organizations::uuid.eq(self.uuid)))
@@ -403,10 +404,12 @@ impl UserOrganization {
             self.status
         };
 
-        let twofactor_enabled = !TwoFactor::find_by_user(&user.uuid, conn).await.is_empty();
+        // let twofactor_enabled = !TwoFactor::find_by_user(&user.uuid, conn).await.is_empty();
+        let twofactor_enabled = false;
 
         let groups: Vec<String> = if include_groups && CONFIG.org_groups_enabled() {
-            GroupUser::find_by_user(&self.uuid, conn).await.iter().map(|gu| gu.groups_uuid.clone()).collect()
+            // GroupUser::find_by_user(&self.uuid, conn).await.iter().map(|gu| gu.groups_uuid.clone()).collect()
+            Vec::with_capacity(0)
         } else {
             // The Bitwarden clients seem to call this API regardless of whether groups are enabled,
             // so just act as if there are no groups.
@@ -414,17 +417,18 @@ impl UserOrganization {
         };
 
         let collections: Vec<Value> = if include_collections {
-            CollectionUser::find_by_organization_and_user_uuid(&self.org_uuid, &self.user_uuid, conn)
-                .await
-                .iter()
-                .map(|cu| {
-                    json!({
-                        "Id": cu.collection_uuid,
-                        "ReadOnly": cu.read_only,
-                        "HidePasswords": cu.hide_passwords,
-                    })
-                })
-                .collect()
+            Vec::with_capacity(0)
+            // CollectionUser::find_by_organization_and_user_uuid(&self.org_uuid, &self.user_uuid, conn)
+            //     .await
+            //     .iter()
+            //     .map(|cu| {
+            //         json!({
+            //             "Id": cu.collection_uuid,
+            //             "ReadOnly": cu.read_only,
+            //             "HidePasswords": cu.hide_passwords,
+            //         })
+            //     })
+            //     .collect()
         } else {
             Vec::with_capacity(0)
         };
@@ -448,30 +452,31 @@ impl UserOrganization {
         })
     }
 
-    pub fn to_json_user_access_restrictions(&self, col_user: &CollectionUser) -> Value {
-        json!({
-            "Id": self.uuid,
-            "ReadOnly": col_user.read_only,
-            "HidePasswords": col_user.hide_passwords,
-        })
-    }
+    // pub fn to_json_user_access_restrictions(&self, col_user: &CollectionUser) -> Value {
+    //     json!({
+    //         "Id": self.uuid,
+    //         "ReadOnly": col_user.read_only,
+    //         "HidePasswords": col_user.hide_passwords,
+    //     })
+    // }
 
-    pub async fn to_json_details(&self, conn: &mut DbConn) -> Value {
-        let coll_uuids = if self.access_all {
+    pub async fn to_json_details(&self, _conn: &mut DbConn) -> Value {
+        let coll_uuids: Vec<Value> = if self.access_all {
             vec![] // If we have complete access, no need to fill the array
         } else {
-            let collections =
-                CollectionUser::find_by_organization_and_user_uuid(&self.org_uuid, &self.user_uuid, conn).await;
-            collections
-                .iter()
-                .map(|c| {
-                    json!({
-                        "Id": c.collection_uuid,
-                        "ReadOnly": c.read_only,
-                        "HidePasswords": c.hide_passwords,
-                    })
-                })
-                .collect()
+            vec![]
+            // let collections =
+            //     CollectionUser::find_by_organization_and_user_uuid(&self.org_uuid, &self.user_uuid, conn).await;
+            // collections
+            //     .iter()
+            //     .map(|c| {
+            //         json!({
+            //             "Id": c.collection_uuid,
+            //             "ReadOnly": c.read_only,
+            //             "HidePasswords": c.hide_passwords,
+            //         })
+            //     })
+            //     .collect()
         };
 
         // Because BitWarden want the status to be -1 for revoked users we need to catch that here.
@@ -531,8 +536,8 @@ impl UserOrganization {
     pub async fn delete(self, conn: &mut DbConn) -> EmptyResult {
         User::update_uuid_revision(&self.user_uuid, conn).await;
 
-        CollectionUser::delete_all_by_user_and_org(&self.user_uuid, &self.org_uuid, conn).await?;
-        GroupUser::delete_all_by_user(&self.uuid, conn).await?;
+        // CollectionUser::delete_all_by_user_and_org(&self.user_uuid, &self.org_uuid, conn).await?;
+        // GroupUser::delete_all_by_user(&self.uuid, conn).await?;
 
         db_run! { conn: {
             diesel::delete(users_organizations::table.filter(users_organizations::uuid.eq(self.uuid)))
@@ -708,24 +713,24 @@ impl UserOrganization {
         }}
     }
 
-    pub async fn find_by_user_and_policy(user_uuid: &str, policy_type: OrgPolicyType, conn: &mut DbConn) -> Vec<Self> {
-        db_run! { conn: {
-            users_organizations::table
-                .inner_join(
-                    org_policies::table.on(
-                        org_policies::org_uuid.eq(users_organizations::org_uuid)
-                            .and(users_organizations::user_uuid.eq(user_uuid))
-                            .and(org_policies::atype.eq(policy_type as i32))
-                            .and(org_policies::enabled.eq(true)))
-                )
-                .filter(
-                    users_organizations::status.eq(UserOrgStatus::Confirmed as i32)
-                )
-                .select(users_organizations::all_columns)
-                .load::<UserOrganizationDb>(conn)
-                .unwrap_or_default().from_db()
-        }}
-    }
+    // pub async fn find_by_user_and_policy(user_uuid: &str, policy_type: OrgPolicyType, conn: &mut DbConn) -> Vec<Self> {
+    //     db_run! { conn: {
+    //         users_organizations::table
+    //             .inner_join(
+    //                 org_policies::table.on(
+    //                     org_policies::org_uuid.eq(users_organizations::org_uuid)
+    //                         .and(users_organizations::user_uuid.eq(user_uuid))
+    //                         .and(org_policies::atype.eq(policy_type as i32))
+    //                         .and(org_policies::enabled.eq(true)))
+    //             )
+    //             .filter(
+    //                 users_organizations::status.eq(UserOrgStatus::Confirmed as i32)
+    //             )
+    //             .select(users_organizations::all_columns)
+    //             .load::<UserOrganizationDb>(conn)
+    //             .unwrap_or_default().from_db()
+    //     }}
+    // }
 
     pub async fn find_by_cipher_and_org(cipher_uuid: &str, org_uuid: &str, conn: &mut DbConn) -> Vec<Self> {
         db_run! { conn: {
@@ -836,3 +841,4 @@ mod tests {
         assert!(UserOrgType::Manager > UserOrgType::User);
     }
 }
+

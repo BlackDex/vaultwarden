@@ -2,7 +2,8 @@
 // Web Headers and caching
 //
 use std::{
-    io::{Cursor, ErrorKind},
+    // io::{Cursor, ErrorKind},
+    io::Cursor,
     ops::Deref,
 };
 
@@ -178,13 +179,13 @@ impl<R> Cached<R> {
         }
     }
 
-    pub fn ttl(response: R, ttl: u64, is_immutable: bool) -> Cached<R> {
-        Self {
-            response,
-            is_immutable,
-            ttl,
-        }
-    }
+    // pub fn ttl(response: R, ttl: u64, is_immutable: bool) -> Cached<R> {
+    //     Self {
+    //         response,
+    //         is_immutable,
+    //         ttl,
+    //     }
+    // }
 }
 
 impl<'r, R: 'r + Responder<'r, 'static> + Send> Responder<'r, 'static> for Cached<R> {
@@ -319,31 +320,32 @@ impl Fairing for BetterLogging {
 // File handling
 //
 use std::{
-    fs::{self, File},
+    // fs::{self, File},
+    fs,
     io::Result as IOResult,
     path::Path,
 };
 
-pub fn file_exists(path: &str) -> bool {
-    Path::new(path).exists()
-}
+// pub fn file_exists(path: &str) -> bool {
+//     Path::new(path).exists()
+// }
 
-pub fn write_file(path: &str, content: &[u8]) -> Result<(), crate::error::Error> {
-    use std::io::Write;
-    let mut f = match File::create(path) {
-        Ok(file) => file,
-        Err(e) => {
-            if e.kind() == ErrorKind::PermissionDenied {
-                error!("Can't create '{}': Permission denied", path);
-            }
-            return Err(From::from(e));
-        }
-    };
+// pub fn write_file(path: &str, content: &[u8]) -> Result<(), crate::error::Error> {
+//     use std::io::Write;
+//     let mut f = match File::create(path) {
+//         Ok(file) => file,
+//         Err(e) => {
+//             if e.kind() == ErrorKind::PermissionDenied {
+//                 error!("Can't create '{}': Permission denied", path);
+//             }
+//             return Err(From::from(e));
+//         }
+//     };
 
-    f.write_all(content)?;
-    f.flush()?;
-    Ok(())
-}
+//     f.write_all(content)?;
+//     f.flush()?;
+//     Ok(())
+// }
 
 pub fn delete_file(path: &str) -> IOResult<()> {
     let res = fs::remove_file(path);
@@ -357,23 +359,23 @@ pub fn delete_file(path: &str) -> IOResult<()> {
     res
 }
 
-pub fn get_display_size(size: i32) -> String {
-    const UNITS: [&str; 6] = ["bytes", "KB", "MB", "GB", "TB", "PB"];
+// pub fn get_display_size(size: i32) -> String {
+//     const UNITS: [&str; 6] = ["bytes", "KB", "MB", "GB", "TB", "PB"];
 
-    let mut size: f64 = size.into();
-    let mut unit_counter = 0;
+//     let mut size: f64 = size.into();
+//     let mut unit_counter = 0;
 
-    loop {
-        if size > 1024. {
-            size /= 1024.;
-            unit_counter += 1;
-        } else {
-            break;
-        }
-    }
+//     loop {
+//         if size > 1024. {
+//             size /= 1024.;
+//             unit_counter += 1;
+//         } else {
+//             break;
+//         }
+//     }
 
-    format!("{:.2} {}", size, UNITS[unit_counter])
-}
+//     format!("{:.2} {}", size, UNITS[unit_counter])
+// }
 
 pub fn get_uuid() -> String {
     uuid::Uuid::new_v4().to_string()
@@ -395,13 +397,13 @@ pub fn upcase_first(s: &str) -> String {
 }
 
 #[inline]
-pub fn lcase_first(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_lowercase().collect::<String>() + c.as_str(),
-    }
-}
+// pub fn lcase_first(s: &str) -> String {
+//     let mut c = s.chars();
+//     match c.next() {
+//         None => String::new(),
+//         Some(f) => f.to_lowercase().collect::<String>() + c.as_str(),
+//     }
+// }
 
 pub fn try_parse_string<S, T>(string: Option<S>) -> Option<T>
 where
@@ -462,13 +464,13 @@ pub fn get_env_bool(key: &str) -> Option<bool> {
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 
 // Format used by Bitwarden API
-const DATETIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.6fZ";
+// const DATETIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.6fZ";
 
 /// Formats a UTC-offset `NaiveDateTime` in the format used by Bitwarden API
 /// responses with "date" fields (`CreationDate`, `RevisionDate`, etc.).
-pub fn format_date(dt: &NaiveDateTime) -> String {
-    dt.format(DATETIME_FORMAT).to_string()
-}
+// pub fn format_date(dt: &NaiveDateTime) -> String {
+//     dt.format(DATETIME_FORMAT).to_string()
+// }
 
 /// Formats a `DateTime<Local>` using the specified format string.
 ///
@@ -508,9 +510,9 @@ pub fn format_datetime_http(dt: &DateTime<Local>) -> String {
     expiry_time.to_rfc2822().replace("+0000", "GMT")
 }
 
-pub fn parse_date(date: &str) -> NaiveDateTime {
-    NaiveDateTime::parse_from_str(date, DATETIME_FORMAT).unwrap()
-}
+// pub fn parse_date(date: &str) -> NaiveDateTime {
+//     NaiveDateTime::parse_from_str(date, DATETIME_FORMAT).unwrap()
+// }
 
 //
 // Deployment environment methods
@@ -696,45 +698,45 @@ pub fn get_reqwest_client_builder() -> ClientBuilder {
     Client::builder().default_headers(headers).timeout(Duration::from_secs(10))
 }
 
-pub fn convert_json_key_lcase_first(src_json: Value) -> Value {
-    match src_json {
-        Value::Array(elm) => {
-            let mut new_array: Vec<Value> = Vec::with_capacity(elm.len());
+// pub fn convert_json_key_lcase_first(src_json: Value) -> Value {
+//     match src_json {
+//         Value::Array(elm) => {
+//             let mut new_array: Vec<Value> = Vec::with_capacity(elm.len());
 
-            for obj in elm {
-                new_array.push(convert_json_key_lcase_first(obj));
-            }
-            Value::Array(new_array)
-        }
+//             for obj in elm {
+//                 new_array.push(convert_json_key_lcase_first(obj));
+//             }
+//             Value::Array(new_array)
+//         }
 
-        Value::Object(obj) => {
-            let mut json_map = JsonMap::new();
-            for (key, value) in obj.iter() {
-                match (key, value) {
-                    (key, Value::Object(elm)) => {
-                        let inner_value = convert_json_key_lcase_first(Value::Object(elm.clone()));
-                        json_map.insert(lcase_first(key), inner_value);
-                    }
+//         Value::Object(obj) => {
+//             let mut json_map = JsonMap::new();
+//             for (key, value) in obj.iter() {
+//                 match (key, value) {
+//                     (key, Value::Object(elm)) => {
+//                         let inner_value = convert_json_key_lcase_first(Value::Object(elm.clone()));
+//                         json_map.insert(lcase_first(key), inner_value);
+//                     }
 
-                    (key, Value::Array(elm)) => {
-                        let mut inner_array: Vec<Value> = Vec::with_capacity(elm.len());
+//                     (key, Value::Array(elm)) => {
+//                         let mut inner_array: Vec<Value> = Vec::with_capacity(elm.len());
 
-                        for inner_obj in elm {
-                            inner_array.push(convert_json_key_lcase_first(inner_obj.clone()));
-                        }
+//                         for inner_obj in elm {
+//                             inner_array.push(convert_json_key_lcase_first(inner_obj.clone()));
+//                         }
 
-                        json_map.insert(lcase_first(key), Value::Array(inner_array));
-                    }
+//                         json_map.insert(lcase_first(key), Value::Array(inner_array));
+//                     }
 
-                    (key, value) => {
-                        json_map.insert(lcase_first(key), value.clone());
-                    }
-                }
-            }
+//                     (key, value) => {
+//                         json_map.insert(lcase_first(key), value.clone());
+//                     }
+//                 }
+//             }
 
-            Value::Object(json_map)
-        }
+//             Value::Object(json_map)
+//         }
 
-        value => value,
-    }
-}
+//         value => value,
+//     }
+// }

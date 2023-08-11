@@ -57,7 +57,8 @@ extern crate diesel;
 extern crate diesel_migrations;
 
 use std::{
-    fs::{canonicalize, create_dir_all},
+    // fs::{canonicalize, create_dir_all},
+    fs::canonicalize,
     panic,
     path::Path,
     process::exit,
@@ -73,13 +74,13 @@ use tokio::{
 #[macro_use]
 mod error;
 mod api;
-mod auth;
+// mod auth;
 mod config;
 mod crypto;
 #[macro_use]
 mod db;
-mod mail;
-mod ratelimit;
+// mod mail;
+// mod ratelimit;
 mod util;
 
 pub use config::CONFIG;
@@ -99,20 +100,20 @@ async fn main() -> Result<(), Error> {
     let extra_debug = matches!(level, LF::Trace | LF::Debug);
 
     check_data_folder().await;
-    check_rsa_keys().unwrap_or_else(|_| {
-        error!("Error creating keys, exiting...");
-        exit(1);
-    });
-    check_web_vault();
+    // check_rsa_keys().unwrap_or_else(|_| {
+    //     error!("Error creating keys, exiting...");
+    //     exit(1);
+    // });
+    // check_web_vault();
 
-    create_dir(&CONFIG.icon_cache_folder(), "icon cache");
-    create_dir(&CONFIG.tmp_folder(), "tmp folder");
-    create_dir(&CONFIG.sends_folder(), "sends folder");
-    create_dir(&CONFIG.attachments_folder(), "attachments folder");
+    // create_dir(&CONFIG.icon_cache_folder(), "icon cache");
+    // create_dir(&CONFIG.tmp_folder(), "tmp folder");
+    // create_dir(&CONFIG.sends_folder(), "sends folder");
+    // create_dir(&CONFIG.attachments_folder(), "attachments folder");
 
     let pool = create_db_pool().await;
-    schedule_jobs(pool.clone());
-    crate::db::models::TwoFactor::migrate_u2f_to_webauthn(&mut pool.get().await.unwrap()).await.unwrap();
+    // schedule_jobs(pool.clone());
+    // crate::db::models::TwoFactor::migrate_u2f_to_webauthn(&mut pool.get().await.unwrap()).await.unwrap();
 
     launch_rocket(pool, extra_debug).await // Blocks until program termination.
 }
@@ -136,7 +137,8 @@ PRESETS:                  m=         t=          p=
 
 ";
 
-pub const VERSION: Option<&str> = option_env!("VW_VERSION");
+// pub const VERSION: Option<&str> = option_env!("VW_VERSION");
+pub const VERSION: Option<&str> = Some("1.30.0");
 
 fn parse_args() {
     let mut pargs = pico_args::Arguments::from_env();
@@ -383,11 +385,11 @@ fn chain_syslog(logger: fern::Dispatch) -> fern::Dispatch {
     }
 }
 
-fn create_dir(path: &str, description: &str) {
-    // Try to create the specified dir, if it doesn't already exist.
-    let err_msg = format!("Error creating {description} directory '{path}'");
-    create_dir_all(path).expect(&err_msg);
-}
+// fn create_dir(path: &str, description: &str) {
+//     // Try to create the specified dir, if it doesn't already exist.
+//     let err_msg = format!("Error creating {description} directory '{path}'");
+//     create_dir_all(path).expect(&err_msg);
+// }
 
 async fn check_data_folder() {
     let data_folder = &CONFIG.data_folder();
@@ -454,48 +456,48 @@ async fn docker_data_folder_is_persistent(data_folder: &str) -> bool {
     true
 }
 
-fn check_rsa_keys() -> Result<(), crate::error::Error> {
-    // If the RSA keys don't exist, try to create them
-    let priv_path = CONFIG.private_rsa_key();
-    let pub_path = CONFIG.public_rsa_key();
+// fn check_rsa_keys() -> Result<(), crate::error::Error> {
+//     // If the RSA keys don't exist, try to create them
+//     let priv_path = CONFIG.private_rsa_key();
+//     let pub_path = CONFIG.public_rsa_key();
 
-    if !util::file_exists(&priv_path) {
-        let rsa_key = openssl::rsa::Rsa::generate(2048)?;
+//     if !util::file_exists(&priv_path) {
+//         let rsa_key = openssl::rsa::Rsa::generate(2048)?;
 
-        let priv_key = rsa_key.private_key_to_pem()?;
-        crate::util::write_file(&priv_path, &priv_key)?;
-        info!("Private key created correctly.");
-    }
+//         let priv_key = rsa_key.private_key_to_pem()?;
+//         crate::util::write_file(&priv_path, &priv_key)?;
+//         info!("Private key created correctly.");
+//     }
 
-    if !util::file_exists(&pub_path) {
-        let rsa_key = openssl::rsa::Rsa::private_key_from_pem(&std::fs::read(&priv_path)?)?;
+//     if !util::file_exists(&pub_path) {
+//         let rsa_key = openssl::rsa::Rsa::private_key_from_pem(&std::fs::read(&priv_path)?)?;
 
-        let pub_key = rsa_key.public_key_to_pem()?;
-        crate::util::write_file(&pub_path, &pub_key)?;
-        info!("Public key created correctly.");
-    }
+//         let pub_key = rsa_key.public_key_to_pem()?;
+//         crate::util::write_file(&pub_path, &pub_key)?;
+//         info!("Public key created correctly.");
+//     }
 
-    auth::load_keys();
-    Ok(())
-}
+//     auth::load_keys();
+//     Ok(())
+// }
 
-fn check_web_vault() {
-    if !CONFIG.web_vault_enabled() {
-        return;
-    }
+// fn check_web_vault() {
+//     if !CONFIG.web_vault_enabled() {
+//         return;
+//     }
 
-    let index_path = Path::new(&CONFIG.web_vault_folder()).join("index.html");
+//     let index_path = Path::new(&CONFIG.web_vault_folder()).join("index.html");
 
-    if !index_path.exists() {
-        error!(
-            "Web vault is not found at '{}'. To install it, please follow the steps in: ",
-            CONFIG.web_vault_folder()
-        );
-        error!("https://github.com/dani-garcia/vaultwarden/wiki/Building-binary#install-the-web-vault");
-        error!("You can also set the environment variable 'WEB_VAULT_ENABLED=false' to disable it");
-        exit(1);
-    }
-}
+//     if !index_path.exists() {
+//         error!(
+//             "Web vault is not found at '{}'. To install it, please follow the steps in: ",
+//             CONFIG.web_vault_folder()
+//         );
+//         error!("https://github.com/dani-garcia/vaultwarden/wiki/Building-binary#install-the-web-vault");
+//         error!("You can also set the environment variable 'WEB_VAULT_ENABLED=false' to disable it");
+//         exit(1);
+//     }
+// }
 
 async fn create_db_pool() -> db::DbPool {
     match util::retry_db(db::DbPool::from_config, CONFIG.db_connection_retries()).await {
@@ -522,17 +524,17 @@ async fn launch_rocket(pool: db::DbPool, extra_debug: bool) -> Result<(), Error>
     // crate::utils::LOGGED_ROUTES to make sure they appear in the log
     let instance = rocket::custom(config)
         .mount([basepath, "/"].concat(), api::web_routes())
-        .mount([basepath, "/api"].concat(), api::core_routes())
+        // .mount([basepath, "/api"].concat(), api::core_routes())
         .mount([basepath, "/admin"].concat(), api::admin_routes())
-        .mount([basepath, "/events"].concat(), api::core_events_routes())
-        .mount([basepath, "/identity"].concat(), api::identity_routes())
-        .mount([basepath, "/icons"].concat(), api::icons_routes())
-        .mount([basepath, "/notifications"].concat(), api::notifications_routes())
-        .register([basepath, "/"].concat(), api::web_catchers())
-        .register([basepath, "/api"].concat(), api::core_catchers())
-        .register([basepath, "/admin"].concat(), api::admin_catchers())
+        // .mount([basepath, "/events"].concat(), api::core_events_routes())
+        // .mount([basepath, "/identity"].concat(), api::identity_routes())
+        // .mount([basepath, "/icons"].concat(), api::icons_routes())
+        // .mount([basepath, "/notifications"].concat(), api::notifications_routes())
+        // .register([basepath, "/"].concat(), api::web_catchers())
+        // .register([basepath, "/api"].concat(), api::core_catchers())
+        // .register([basepath, "/admin"].concat(), api::admin_catchers())
         .manage(pool)
-        .manage(api::start_notification_server())
+        // .manage(api::start_notification_server())
         .attach(util::AppHeaders())
         .attach(util::Cors())
         .attach(util::BetterLogging(extra_debug))
@@ -553,84 +555,84 @@ async fn launch_rocket(pool: db::DbPool, extra_debug: bool) -> Result<(), Error>
     Ok(())
 }
 
-fn schedule_jobs(pool: db::DbPool) {
-    if CONFIG.job_poll_interval_ms() == 0 {
-        info!("Job scheduler disabled.");
-        return;
-    }
+// fn schedule_jobs(pool: db::DbPool) {
+//     if CONFIG.job_poll_interval_ms() == 0 {
+//         info!("Job scheduler disabled.");
+//         return;
+//     }
 
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+//     let runtime = tokio::runtime::Runtime::new().unwrap();
 
-    thread::Builder::new()
-        .name("job-scheduler".to_string())
-        .spawn(move || {
-            use job_scheduler_ng::{Job, JobScheduler};
-            let _runtime_guard = runtime.enter();
+//     thread::Builder::new()
+//         .name("job-scheduler".to_string())
+//         .spawn(move || {
+//             use job_scheduler_ng::{Job, JobScheduler};
+//             let _runtime_guard = runtime.enter();
 
-            let mut sched = JobScheduler::new();
+//             let mut sched = JobScheduler::new();
 
-            // Purge sends that are past their deletion date.
-            if !CONFIG.send_purge_schedule().is_empty() {
-                sched.add(Job::new(CONFIG.send_purge_schedule().parse().unwrap(), || {
-                    runtime.spawn(api::purge_sends(pool.clone()));
-                }));
-            }
+//             // Purge sends that are past their deletion date.
+//             if !CONFIG.send_purge_schedule().is_empty() {
+//                 sched.add(Job::new(CONFIG.send_purge_schedule().parse().unwrap(), || {
+//                     runtime.spawn(api::purge_sends(pool.clone()));
+//                 }));
+//             }
 
-            // Purge trashed items that are old enough to be auto-deleted.
-            if !CONFIG.trash_purge_schedule().is_empty() {
-                sched.add(Job::new(CONFIG.trash_purge_schedule().parse().unwrap(), || {
-                    runtime.spawn(api::purge_trashed_ciphers(pool.clone()));
-                }));
-            }
+//             // Purge trashed items that are old enough to be auto-deleted.
+//             if !CONFIG.trash_purge_schedule().is_empty() {
+//                 sched.add(Job::new(CONFIG.trash_purge_schedule().parse().unwrap(), || {
+//                     runtime.spawn(api::purge_trashed_ciphers(pool.clone()));
+//                 }));
+//             }
 
-            // Send email notifications about incomplete 2FA logins, which potentially
-            // indicates that a user's master password has been compromised.
-            if !CONFIG.incomplete_2fa_schedule().is_empty() {
-                sched.add(Job::new(CONFIG.incomplete_2fa_schedule().parse().unwrap(), || {
-                    runtime.spawn(api::send_incomplete_2fa_notifications(pool.clone()));
-                }));
-            }
+//             // Send email notifications about incomplete 2FA logins, which potentially
+//             // indicates that a user's master password has been compromised.
+//             if !CONFIG.incomplete_2fa_schedule().is_empty() {
+//                 sched.add(Job::new(CONFIG.incomplete_2fa_schedule().parse().unwrap(), || {
+//                     runtime.spawn(api::send_incomplete_2fa_notifications(pool.clone()));
+//                 }));
+//             }
 
-            // Grant emergency access requests that have met the required wait time.
-            // This job should run before the emergency access reminders job to avoid
-            // sending reminders for requests that are about to be granted anyway.
-            if !CONFIG.emergency_request_timeout_schedule().is_empty() {
-                sched.add(Job::new(CONFIG.emergency_request_timeout_schedule().parse().unwrap(), || {
-                    runtime.spawn(api::emergency_request_timeout_job(pool.clone()));
-                }));
-            }
+//             // Grant emergency access requests that have met the required wait time.
+//             // This job should run before the emergency access reminders job to avoid
+//             // sending reminders for requests that are about to be granted anyway.
+//             if !CONFIG.emergency_request_timeout_schedule().is_empty() {
+//                 sched.add(Job::new(CONFIG.emergency_request_timeout_schedule().parse().unwrap(), || {
+//                     runtime.spawn(api::emergency_request_timeout_job(pool.clone()));
+//                 }));
+//             }
 
-            // Send reminders to emergency access grantors that there are pending
-            // emergency access requests.
-            if !CONFIG.emergency_notification_reminder_schedule().is_empty() {
-                sched.add(Job::new(CONFIG.emergency_notification_reminder_schedule().parse().unwrap(), || {
-                    runtime.spawn(api::emergency_notification_reminder_job(pool.clone()));
-                }));
-            }
+//             // Send reminders to emergency access grantors that there are pending
+//             // emergency access requests.
+//             if !CONFIG.emergency_notification_reminder_schedule().is_empty() {
+//                 sched.add(Job::new(CONFIG.emergency_notification_reminder_schedule().parse().unwrap(), || {
+//                     runtime.spawn(api::emergency_notification_reminder_job(pool.clone()));
+//                 }));
+//             }
 
-            // Cleanup the event table of records x days old.
-            if CONFIG.org_events_enabled()
-                && !CONFIG.event_cleanup_schedule().is_empty()
-                && CONFIG.events_days_retain().is_some()
-            {
-                sched.add(Job::new(CONFIG.event_cleanup_schedule().parse().unwrap(), || {
-                    runtime.spawn(api::event_cleanup_job(pool.clone()));
-                }));
-            }
+//             // Cleanup the event table of records x days old.
+//             if CONFIG.org_events_enabled()
+//                 && !CONFIG.event_cleanup_schedule().is_empty()
+//                 && CONFIG.events_days_retain().is_some()
+//             {
+//                 sched.add(Job::new(CONFIG.event_cleanup_schedule().parse().unwrap(), || {
+//                     runtime.spawn(api::event_cleanup_job(pool.clone()));
+//                 }));
+//             }
 
-            // Periodically check for jobs to run. We probably won't need any
-            // jobs that run more often than once a minute, so a default poll
-            // interval of 30 seconds should be sufficient. Users who want to
-            // schedule jobs to run more frequently for some reason can reduce
-            // the poll interval accordingly.
-            //
-            // Note that the scheduler checks jobs in the order in which they
-            // were added, so if two jobs are both eligible to run at a given
-            // tick, the one that was added earlier will run first.
-            loop {
-                sched.tick();
-                runtime.block_on(tokio::time::sleep(tokio::time::Duration::from_millis(CONFIG.job_poll_interval_ms())));
-            }
-        })
-        .expect("Error spawning job scheduler thread");
-}
+//             // Periodically check for jobs to run. We probably won't need any
+//             // jobs that run more often than once a minute, so a default poll
+//             // interval of 30 seconds should be sufficient. Users who want to
+//             // schedule jobs to run more frequently for some reason can reduce
+//             // the poll interval accordingly.
+//             //
+//             // Note that the scheduler checks jobs in the order in which they
+//             // were added, so if two jobs are both eligible to run at a given
+//             // tick, the one that was added earlier will run first.
+//             loop {
+//                 sched.tick();
+//                 runtime.block_on(tokio::time::sleep(tokio::time::Duration::from_millis(CONFIG.job_poll_interval_ms())));
+//             }
+//         })
+//         .expect("Error spawning job scheduler thread");
+// }

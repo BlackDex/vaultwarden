@@ -1,6 +1,7 @@
 use chrono::{NaiveDateTime, Utc};
 
-use crate::{crypto, CONFIG};
+// use crate::{crypto, CONFIG};
+use crate::crypto;
 
 db_object! {
     #[derive(Identifiable, Queryable, Insertable, AsChangeset)]
@@ -58,53 +59,53 @@ impl Device {
         self.twofactor_remember = None;
     }
 
-    pub fn refresh_tokens(
-        &mut self,
-        user: &super::User,
-        orgs: Vec<super::UserOrganization>,
-        scope: Vec<String>,
-    ) -> (String, i64) {
-        // If there is no refresh token, we create one
-        if self.refresh_token.is_empty() {
-            use data_encoding::BASE64URL;
-            self.refresh_token = crypto::encode_random_bytes::<64>(BASE64URL);
-        }
+    // pub fn refresh_tokens(
+    //     &mut self,
+    //     user: &super::User,
+    //     orgs: Vec<super::UserOrganization>,
+    //     scope: Vec<String>,
+    // ) -> (String, i64) {
+    //     // If there is no refresh token, we create one
+    //     if self.refresh_token.is_empty() {
+    //         use data_encoding::BASE64URL;
+    //         self.refresh_token = crypto::encode_random_bytes::<64>(BASE64URL);
+    //     }
 
-        // Update the expiration of the device and the last update date
-        let time_now = Utc::now().naive_utc();
-        self.updated_at = time_now;
+    //     // Update the expiration of the device and the last update date
+    //     let time_now = Utc::now().naive_utc();
+    //     self.updated_at = time_now;
 
-        let orgowner: Vec<_> = orgs.iter().filter(|o| o.atype == 0).map(|o| o.org_uuid.clone()).collect();
-        let orgadmin: Vec<_> = orgs.iter().filter(|o| o.atype == 1).map(|o| o.org_uuid.clone()).collect();
-        let orguser: Vec<_> = orgs.iter().filter(|o| o.atype == 2).map(|o| o.org_uuid.clone()).collect();
-        let orgmanager: Vec<_> = orgs.iter().filter(|o| o.atype == 3).map(|o| o.org_uuid.clone()).collect();
+    //     let orgowner: Vec<_> = orgs.iter().filter(|o| o.atype == 0).map(|o| o.org_uuid.clone()).collect();
+    //     let orgadmin: Vec<_> = orgs.iter().filter(|o| o.atype == 1).map(|o| o.org_uuid.clone()).collect();
+    //     let orguser: Vec<_> = orgs.iter().filter(|o| o.atype == 2).map(|o| o.org_uuid.clone()).collect();
+    //     let orgmanager: Vec<_> = orgs.iter().filter(|o| o.atype == 3).map(|o| o.org_uuid.clone()).collect();
 
-        // Create the JWT claims struct, to send to the client
-        use crate::auth::{encode_jwt, LoginJwtClaims, DEFAULT_VALIDITY, JWT_LOGIN_ISSUER};
-        let claims = LoginJwtClaims {
-            nbf: time_now.timestamp(),
-            exp: (time_now + *DEFAULT_VALIDITY).timestamp(),
-            iss: JWT_LOGIN_ISSUER.to_string(),
-            sub: user.uuid.clone(),
+    //     // Create the JWT claims struct, to send to the client
+    //     use crate::auth::{encode_jwt, LoginJwtClaims, DEFAULT_VALIDITY, JWT_LOGIN_ISSUER};
+    //     let claims = LoginJwtClaims {
+    //         nbf: time_now.timestamp(),
+    //         exp: (time_now + *DEFAULT_VALIDITY).timestamp(),
+    //         iss: JWT_LOGIN_ISSUER.to_string(),
+    //         sub: user.uuid.clone(),
 
-            premium: true,
-            name: user.name.clone(),
-            email: user.email.clone(),
-            email_verified: !CONFIG.mail_enabled() || user.verified_at.is_some(),
+    //         premium: true,
+    //         name: user.name.clone(),
+    //         email: user.email.clone(),
+    //         email_verified: !CONFIG.mail_enabled() || user.verified_at.is_some(),
 
-            orgowner,
-            orgadmin,
-            orguser,
-            orgmanager,
+    //         orgowner,
+    //         orgadmin,
+    //         orguser,
+    //         orgmanager,
 
-            sstamp: user.security_stamp.clone(),
-            device: self.uuid.clone(),
-            scope,
-            amr: vec!["Application".into()],
-        };
+    //         sstamp: user.security_stamp.clone(),
+    //         device: self.uuid.clone(),
+    //         scope,
+    //         amr: vec!["Application".into()],
+    //     };
 
-        (encode_jwt(&claims), DEFAULT_VALIDITY.num_seconds())
-    }
+    //     (encode_jwt(&claims), DEFAULT_VALIDITY.num_seconds())
+    // }
 }
 
 use crate::db::DbConn;
