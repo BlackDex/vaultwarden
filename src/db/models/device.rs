@@ -2,28 +2,27 @@ use chrono::{NaiveDateTime, Utc};
 
 // use crate::{crypto, CONFIG};
 use crate::crypto;
+use crate::db::schema::devices;
 
-db_object! {
-    #[derive(Identifiable, Queryable, Insertable, AsChangeset)]
-    #[diesel(table_name = devices)]
-    #[diesel(treat_none_as_null = true)]
-    #[diesel(primary_key(uuid, user_uuid))]
-    pub struct Device {
-        pub uuid: String,
-        pub created_at: NaiveDateTime,
-        pub updated_at: NaiveDateTime,
+#[derive(Identifiable, Queryable, Insertable, AsChangeset)]
+#[diesel(table_name = devices)]
+#[diesel(treat_none_as_null = true)]
+#[diesel(primary_key(uuid, user_uuid))]
+pub struct Device {
+    pub uuid: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 
-        pub user_uuid: String,
+    pub user_uuid: String,
 
-        pub name: String,
-        pub atype: i32,         // https://github.com/bitwarden/server/blob/master/src/Core/Enums/DeviceType.cs
-        pub push_uuid: Option<String>,
-        pub push_token: Option<String>,
+    pub name: String,
+    pub atype: i32, // https://github.com/bitwarden/server/blob/master/src/Core/Enums/DeviceType.cs
+    pub push_uuid: Option<String>,
+    pub push_token: Option<String>,
 
-        pub refresh_token: String,
+    pub refresh_token: String,
 
-        pub twofactor_remember: Option<String>,
-    }
+    pub twofactor_remember: Option<String>,
 }
 
 /// Local methods
@@ -121,14 +120,13 @@ impl Device {
         db_run! { conn:
             sqlite, mysql {
                 crate::util::retry(
-                    || diesel::replace_into(devices::table).values(DeviceDb::to_db(self)).execute(conn),
+                    || diesel::replace_into(devices::table).values(&*self).execute(conn),
                     10,
                 ).map_res("Error saving device")
             }
             postgresql {
-                let value = DeviceDb::to_db(self);
                 crate::util::retry(
-                    || diesel::insert_into(devices::table).values(&value).on_conflict((devices::uuid, devices::user_uuid)).do_update().set(&value).execute(conn),
+                    || diesel::insert_into(devices::table).values(&*self).on_conflict((devices::uuid, devices::user_uuid)).do_update().set(&*self).execute(conn),
                     10,
                 ).map_res("Error saving device")
             }
@@ -148,9 +146,8 @@ impl Device {
             devices::table
                 .filter(devices::uuid.eq(uuid))
                 .filter(devices::user_uuid.eq(user_uuid))
-                .first::<DeviceDb>(conn)
+                .first::<Self>(conn)
                 .ok()
-                .from_db()
         }}
     }
 
@@ -158,9 +155,8 @@ impl Device {
         db_run! { conn: {
             devices::table
                 .filter(devices::user_uuid.eq(user_uuid))
-                .load::<DeviceDb>(conn)
+                .load::<Self>(conn)
                 .expect("Error loading devices")
-                .from_db()
         }}
     }
 
@@ -168,9 +164,8 @@ impl Device {
         db_run! { conn: {
             devices::table
                 .filter(devices::uuid.eq(uuid))
-                .first::<DeviceDb>(conn)
+                .first::<Self>(conn)
                 .ok()
-                .from_db()
         }}
     }
 
@@ -187,9 +182,8 @@ impl Device {
         db_run! { conn: {
             devices::table
                 .filter(devices::refresh_token.eq(refresh_token))
-                .first::<DeviceDb>(conn)
+                .first::<Self>(conn)
                 .ok()
-                .from_db()
         }}
     }
 
@@ -198,9 +192,8 @@ impl Device {
             devices::table
                 .filter(devices::user_uuid.eq(user_uuid))
                 .order(devices::updated_at.desc())
-                .first::<DeviceDb>(conn)
+                .first::<Self>(conn)
                 .ok()
-                .from_db()
         }}
     }
     pub async fn find_push_devices_by_user(user_uuid: &str, conn: &mut DbConn) -> Vec<Self> {
@@ -208,9 +201,8 @@ impl Device {
             devices::table
                 .filter(devices::user_uuid.eq(user_uuid))
                 .filter(devices::push_token.is_not_null())
-                .load::<DeviceDb>(conn)
+                .load::<Self>(conn)
                 .expect("Error loading push devices")
-                .from_db()
         }}
     }
 

@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use rocket::{fs::NamedFile, http::ContentType, /*response::content::RawHtml as Html,*/ serde::json::Json, /*Catcher,*/ Route};
+use rocket::{
+    fs::NamedFile, http::ContentType, /*response::content::RawHtml as Html,*/ serde::json::Json,
+    /*Catcher,*/ Route,
+};
 use serde_json::Value;
 
 use crate::{

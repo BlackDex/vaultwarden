@@ -4,62 +4,62 @@ use serde_json::Value;
 use crate::crypto;
 use crate::CONFIG;
 
-db_object! {
-    #[derive(Identifiable, Queryable, Insertable, AsChangeset)]
-    #[diesel(table_name = users)]
-    #[diesel(treat_none_as_null = true)]
-    #[diesel(primary_key(uuid))]
-    pub struct User {
-        pub uuid: String,
-        pub enabled: bool,
-        pub created_at: NaiveDateTime,
-        pub updated_at: NaiveDateTime,
-        pub verified_at: Option<NaiveDateTime>,
-        pub last_verifying_at: Option<NaiveDateTime>,
-        pub login_verify_count: i32,
+use crate::db::schema::{invitations, users};
 
-        pub email: String,
-        pub email_new: Option<String>,
-        pub email_new_token: Option<String>,
-        pub name: String,
+#[derive(Identifiable, Queryable, Insertable, AsChangeset)]
+#[diesel(table_name = users)]
+#[diesel(treat_none_as_null = true)]
+#[diesel(primary_key(uuid))]
+pub struct User {
+    pub uuid: String,
+    pub enabled: bool,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub verified_at: Option<NaiveDateTime>,
+    pub last_verifying_at: Option<NaiveDateTime>,
+    pub login_verify_count: i32,
 
-        pub password_hash: Vec<u8>,
-        pub salt: Vec<u8>,
-        pub password_iterations: i32,
-        pub password_hint: Option<String>,
+    pub email: String,
+    pub email_new: Option<String>,
+    pub email_new_token: Option<String>,
+    pub name: String,
 
-        pub akey: String,
-        pub private_key: Option<String>,
-        pub public_key: Option<String>,
+    pub password_hash: Vec<u8>,
+    pub salt: Vec<u8>,
+    pub password_iterations: i32,
+    pub password_hint: Option<String>,
 
-        #[diesel(column_name = "totp_secret")] // Note, this is only added to the UserDb structs, not to User
-        _totp_secret: Option<String>,
-        pub totp_recover: Option<String>,
+    pub akey: String,
+    pub private_key: Option<String>,
+    pub public_key: Option<String>,
 
-        pub security_stamp: String,
-        pub stamp_exception: Option<String>,
+    #[diesel(column_name = "totp_secret")] // Note, this is only added to the UserDb structs, not to User
+    _totp_secret: Option<String>,
+    pub totp_recover: Option<String>,
 
-        pub equivalent_domains: String,
-        pub excluded_globals: String,
+    pub security_stamp: String,
+    pub stamp_exception: Option<String>,
 
-        pub client_kdf_type: i32,
-        pub client_kdf_iter: i32,
-        pub client_kdf_memory: Option<i32>,
-        pub client_kdf_parallelism: Option<i32>,
+    pub equivalent_domains: String,
+    pub excluded_globals: String,
 
-        pub api_key: Option<String>,
+    pub client_kdf_type: i32,
+    pub client_kdf_iter: i32,
+    pub client_kdf_memory: Option<i32>,
+    pub client_kdf_parallelism: Option<i32>,
 
-        pub avatar_color: Option<String>,
+    pub api_key: Option<String>,
 
-        pub external_id: Option<String>,
-    }
+    pub avatar_color: Option<String>,
 
-    #[derive(Identifiable, Queryable, Insertable)]
-    #[diesel(table_name = invitations)]
-    #[diesel(primary_key(email))]
-    pub struct Invitation {
-        pub email: String,
-    }
+    pub external_id: Option<String>,
+}
+
+#[derive(Identifiable, Queryable, Insertable)]
+#[diesel(table_name = invitations)]
+#[diesel(primary_key(email))]
+pub struct Invitation {
+    pub email: String,
 }
 
 pub enum UserKdfType {
@@ -226,8 +226,8 @@ impl User {
 }
 
 use super::{
-    /*Cipher,*/ Device, /*EmergencyAccess, Favorite, Folder, Send, TwoFactor, TwoFactorIncomplete,*/ UserOrgType,
-    UserOrganization,
+    /*Cipher,*/ Device,
+    /*EmergencyAccess, Favorite, Folder, Send, TwoFactor, TwoFactorIncomplete, UserOrgType,*/ UserOrganization,
 };
 use crate::db::DbConn;
 
@@ -284,7 +284,7 @@ impl User {
         db_run! {conn:
             sqlite, mysql {
                 match diesel::replace_into(users::table)
-                    .values(UserDb::to_db(self))
+                    .values(&*self)
                     .execute(conn)
                 {
                     Ok(_) => Ok(()),
@@ -292,7 +292,7 @@ impl User {
                     Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::ForeignKeyViolation, _)) => {
                         diesel::update(users::table)
                             .filter(users::uuid.eq(&self.uuid))
-                            .set(UserDb::to_db(self))
+                            .set(&*self)
                             .execute(conn)
                             .map_res("Error saving user")
                     }
@@ -300,12 +300,11 @@ impl User {
                 }.map_res("Error saving user")
             }
             postgresql {
-                let value = UserDb::to_db(self);
                 diesel::insert_into(users::table) // Insert or update
-                    .values(&value)
+                    .values(&*self)
                     .on_conflict(users::uuid)
                     .do_update()
-                    .set(&value)
+                    .set(&*self)
                     .execute(conn)
                     .map_res("Error saving user")
             }
@@ -379,29 +378,27 @@ impl User {
     pub async fn find_by_mail(mail: &str, conn: &mut DbConn) -> Option<Self> {
         let lower_mail = mail.to_lowercase();
         db_run! {conn: {
-            users::table
-                .filter(users::email.eq(lower_mail))
-                .first::<UserDb>(conn)
-                .ok()
-                .from_db()
-        }}
+        users::table
+            .filter(users::email.eq(lower_mail))
+            .first::<Self>(conn)
+            .ok()        }}
     }
 
     pub async fn find_by_uuid(uuid: &str, conn: &mut DbConn) -> Option<Self> {
         db_run! {conn: {
-            users::table.filter(users::uuid.eq(uuid)).first::<UserDb>(conn).ok().from_db()
+            users::table.filter(users::uuid.eq(uuid)).first::<Self>(conn).ok()
         }}
     }
 
     pub async fn find_by_external_id(id: &str, conn: &mut DbConn) -> Option<Self> {
         db_run! {conn: {
-            users::table.filter(users::external_id.eq(id)).first::<UserDb>(conn).ok().from_db()
+            users::table.filter(users::external_id.eq(id)).first::<Self>(conn).ok()
         }}
     }
 
     pub async fn get_all(conn: &mut DbConn) -> Vec<Self> {
         db_run! {conn: {
-            users::table.load::<UserDb>(conn).expect("Error loading users").from_db()
+            users::table.load::<Self>(conn).expect("Error loading users")
         }}
     }
 
@@ -431,13 +428,13 @@ impl Invitation {
                 // Not checking for ForeignKey Constraints here
                 // Table invitations does not have any ForeignKey Constraints.
                 diesel::replace_into(invitations::table)
-                    .values(InvitationDb::to_db(self))
+                    .values(self)
                     .execute(conn)
                     .map_res("Error saving invitation")
             }
             postgresql {
                 diesel::insert_into(invitations::table)
-                    .values(InvitationDb::to_db(self))
+                    .values(self)
                     .on_conflict(invitations::email)
                     .do_nothing()
                     .execute(conn)
@@ -457,11 +454,10 @@ impl Invitation {
     pub async fn find_by_mail(mail: &str, conn: &mut DbConn) -> Option<Self> {
         let lower_mail = mail.to_lowercase();
         db_run! {conn: {
-            invitations::table
-                .filter(invitations::email.eq(lower_mail))
-                .first::<InvitationDb>(conn)
-                .ok()
-                .from_db()
+        invitations::table
+            .filter(invitations::email.eq(lower_mail))
+            .first::<Self>(conn)
+            .ok()
         }}
     }
 

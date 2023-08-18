@@ -18,7 +18,8 @@ use crate::{
     db::{backup_database, get_sql_server_version, models::*, DbConn, DbConnType},
     error::{Error, MapResult},
     util::{
-        docker_base_image, format_naive_datetime_local, /*get_display_size,*/ get_reqwest_client, is_running_in_docker,
+        docker_base_image, format_naive_datetime_local, /*get_display_size,*/ get_reqwest_client,
+        is_running_in_docker,
     },
     CONFIG, VERSION,
 };
@@ -68,15 +69,15 @@ pub fn routes() -> Vec<Route> {
 static DB_TYPE: Lazy<&str> = Lazy::new(|| {
     DbConnType::from_url(&CONFIG.database_url())
         .map(|t| match t {
-            DbConnType::sqlite => "SQLite",
-            DbConnType::mysql => "MySQL",
-            DbConnType::postgresql => "PostgreSQL",
+            DbConnType::Sqlite => "SQLite",
+            DbConnType::Mysql => "MySQL",
+            DbConnType::Postgresql => "PostgreSQL",
         })
         .unwrap_or("Unknown")
 });
 
 static CAN_BACKUP: Lazy<bool> =
-    Lazy::new(|| DbConnType::from_url(&CONFIG.database_url()).map(|t| t == DbConnType::sqlite).unwrap_or(false));
+    Lazy::new(|| DbConnType::from_url(&CONFIG.database_url()).map(|t| t == DbConnType::Sqlite).unwrap_or(false));
 
 #[get("/")]
 fn admin_disabled() -> &'static str {

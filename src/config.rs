@@ -684,7 +684,7 @@ make_config! {
 fn validate_config(cfg: &ConfigItems) -> Result<(), Error> {
     // Validate connection URL is valid and DB feature is enabled
     let url = &cfg.database_url;
-    if DbConnType::from_url(url)? == DbConnType::sqlite && url.contains('/') {
+    if DbConnType::from_url(url)? == DbConnType::Sqlite && url.contains('/') {
         let path = std::path::Path::new(&url);
         if let Some(parent) = path.parent() {
             if !parent.is_dir() {

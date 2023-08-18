@@ -8,7 +8,6 @@ use std::num::NonZeroU32;
 use data_encoding::Encoding;
 use ring::{digest, pbkdf2};
 
-
 static DIGEST_ALG: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const OUTPUT_LEN: usize = digest::SHA256_OUTPUT_LEN;
 
