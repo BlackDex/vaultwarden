@@ -9,7 +9,10 @@ use crate::{
         core::{log_event, two_factor, CipherSyncData, CipherSyncType},
         EmptyResult, JsonResult, Notify, PasswordOrOtpData, UpdateType,
     },
-    auth::{decode_invite, AdminHeaders, ClientVersion, Headers, ManagerHeaders, ManagerHeadersLoose, OwnerHeaders},
+    auth::{
+        decode_invite, AdminHeaders, ClientVersion, Headers, ManagerHeaders, ManagerHeadersLoose, OrgMemberHeaders,
+        OwnerHeaders,
+    },
     db::{models::*, DbConn},
     mail,
     util::{convert_json_key_lcase_first, NumberOrString},
@@ -210,6 +213,9 @@ async fn delete_organization(
     headers: OwnerHeaders,
     mut conn: DbConn,
 ) -> EmptyResult {
+    if org_id != headers.org_id {
+        err!("Organization not found", "Organization id's do not match");
+    }
     let data: PasswordOrOtpData = data.into_inner();
 
     data.validate(&headers.user, true, &mut conn).await?;
@@ -258,7 +264,10 @@ async fn leave_organization(org_id: OrganizationId, headers: Headers, mut conn: 
 }
 
 #[get("/organizations/<org_id>")]
-async fn get_organization(org_id: OrganizationId, _headers: OwnerHeaders, mut conn: DbConn) -> JsonResult {
+async fn get_organization(org_id: OrganizationId, headers: OwnerHeaders, mut conn: DbConn) -> JsonResult {
+    if org_id != headers.org_id {
+        err!("Organization not found", "Organization id's do not match");
+    }
     match Organization::find_by_uuid(&org_id, &mut conn).await {
         Some(organization) => Ok(Json(organization.to_json())),
         None => err!("Can't find organization details"),
@@ -282,10 +291,14 @@ async fn post_organization(
     data: Json<OrganizationUpdateData>,
     mut conn: DbConn,
 ) -> JsonResult {
+    if org_id != headers.org_id {
+        err!("Organization not found", "Organization id's do not match");
+    }
+
     let data: OrganizationUpdateData = data.into_inner();
 
     let Some(mut org) = Organization::find_by_uuid(&org_id, &mut conn).await else {
-        err!("Can't find organization details")
+        err!("Organization not found")
     };
 
     org.name = data.name;
@@ -770,10 +783,9 @@ struct OrgIdData {
 }
 
 #[get("/ciphers/organization-details?<data..>")]
-async fn get_org_details(data: OrgIdData, headers: Headers, mut conn: DbConn) -> JsonResult {
-    if Membership::find_confirmed_by_user_and_org(&headers.user.uuid, &data.organization_id, &mut conn).await.is_none()
-    {
-        err_code!("Resource not found.", rocket::http::Status::NotFound.code);
+async fn get_org_details(data: OrgIdData, headers: OrgMemberHeaders, mut conn: DbConn) -> JsonResult {
+    if data.organization_id != headers.org_id {
+        err_code!("Resource not found.", "Organization id's do not match", rocket::http::Status::NotFound.code);
     }
 
     Ok(Json(json!({
