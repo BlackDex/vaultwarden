@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - llvm-optimizations-release
 
     tags:
       # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#filter-pattern-cheat-sheet
@@ -12,14 +13,14 @@ on:
 
 concurrency:
   # Apply concurrency control only on the upstream repo
-  group: ${{ github.repository == 'dani-garcia/vaultwarden' && format('{0}-{1}', github.workflow, github.ref) || github.run_id }}
+  group: ${{ github.repository == 'blackdex/vaultwarden' && format('{0}-{1}', github.workflow, github.ref) || github.run_id }}
   # Don't cancel other runs when creating a tag
   cancel-in-progress: ${{ github.ref_type == 'branch' }}
 
 jobs:
   docker-build:
     name: Build Vaultwarden containers
-    if: ${{ github.repository == 'dani-garcia/vaultwarden' }}
+    if: ${{ github.repository == 'blackdex/vaultwarden' }}
     permissions:
       packages: write # Needed to upload packages and artifacts
       contents: read
