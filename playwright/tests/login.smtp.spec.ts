@@ -1,4 +1,4 @@
-import { test, expect, type TestInfo } from '@playwright/test';
+import { test, expect, type TestInfo } from '../fixtures';
 import { MailDev } from 'maildev';
 
 const utils = require('../global-utils');
@@ -7,15 +7,15 @@ import { activateEmail, retrieveEmailCode, disableEmail } from './setups/2fa';
 
 let users = utils.loadEnv();
 
-let mailserver;
+let mailServer: MailDev;
 
 test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
-    mailserver = new MailDev({
-        port: process.env.MAILDEV_SMTP_PORT,
-        web: { port: process.env.MAILDEV_HTTP_PORT },
-    })
+    mailServer = new MailDev({
+        port: parseInt(process.env.MAILDEV_SMTP_PORT, 10),
+        web: { port: parseInt(process.env.MAILDEV_WEB_PORT, 10) },
+    });
 
-    await mailserver.listen();
+    await mailServer.listen();
 
     await utils.startVault(browser, testInfo, {
         SMTP_HOST: process.env.MAILDEV_HOST,
@@ -23,15 +23,15 @@ test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
     });
 });
 
-test.afterAll('Teardown', async ({}) => {
+test.afterAll('Teardown', async ({ }) => {
     utils.stopVault();
-    if( mailserver ){
-        await mailserver.close();
+    if (mailServer) {
+        await mailServer.close();
     }
 });
 
 test('Account creation', async ({ page }) => {
-    const mailBuffer = mailserver.buffer(users.user1.email);
+    const mailBuffer = mailServer.buffer(users.user1.email);
 
     await createAccount(test, page, users.user1, mailBuffer);
 
@@ -39,7 +39,7 @@ test('Account creation', async ({ page }) => {
 });
 
 test('Login', async ({ context, page }) => {
-    const mailBuffer = mailserver.buffer(users.user1.email);
+    const mailBuffer = mailServer.buffer(users.user1.email);
 
     await logUser(test, page, users.user1, mailBuffer);
 
@@ -66,7 +66,7 @@ test('Login', async ({ context, page }) => {
 });
 
 test('Activate 2fa', async ({ page }) => {
-    const emails = mailserver.buffer(users.user1.email);
+    const emails = mailServer.buffer(users.user1.email);
 
     await logUser(test, page, users.user1);
 
@@ -76,7 +76,7 @@ test('Activate 2fa', async ({ page }) => {
 });
 
 test('2fa', async ({ page }) => {
-    const emails = mailserver.buffer(users.user1.email);
+    const emails = mailServer.buffer(users.user1.email);
 
     await test.step('login', async () => {
         await page.goto('/');

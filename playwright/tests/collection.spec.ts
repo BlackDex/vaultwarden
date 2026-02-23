@@ -1,4 +1,5 @@
-import { test, expect, type TestInfo } from '@playwright/test';
+import { test, expect, type TestInfo } from '../fixtures';
+
 
 import * as utils from "../global-utils";
 import { createAccount } from './setups/user';
@@ -10,7 +11,7 @@ test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
 });
 
 test.afterAll('Teardown', async ({}) => {
-    utils.stopVault();
+    await utils.stopVault();
 });
 
 test('Create', async ({ page }) => {

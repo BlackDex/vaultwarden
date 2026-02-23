@@ -1,4 +1,4 @@
-import { expect, type Browser, Page } from '@playwright/test';
+import { expect, type Browser, Page } from '../../fixtures';
 
 import { type MailBuffer } from 'maildev';
 
@@ -28,7 +28,7 @@ export async function createAccount(test, page: Page, user: { email: string, nam
         await expect(page).toHaveTitle('Vaults | Vaultwarden Web');
         // await utils.checkNotification(page, 'You have been logged in!');
 
-        if( mailBuffer ){
+        if (mailBuffer) {
             await mailBuffer.expect((m) => m.subject === "Welcome");
             await mailBuffer.expect((m) => m.subject === "New Device Logged In From Firefox");
         }
@@ -51,7 +51,7 @@ export async function logUser(test, page: Page, user: { email: string, password:
         // We are now in the default vault page
         await expect(page).toHaveTitle(/Vaultwarden Web/);
 
-        if( mailBuffer ){
+        if (mailBuffer) {
             await mailBuffer.expect((m) => m.subject === "New Device Logged In From Firefox");
         }
     });

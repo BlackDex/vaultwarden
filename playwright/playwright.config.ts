@@ -34,16 +34,16 @@ export default defineConfig({
     use: {
         /* Base URL to use in actions like `await page.goto('/')`. */
         baseURL: process.env.DOMAIN,
+        ignoreHTTPSErrors: true, // Needed for self-signed certs
         browserName: 'firefox',
         locale: 'en-GB',
         timezoneId: 'Europe/London',
+        screenshot: 'only-on-failure',
 
         /* Always collect trace (other values add random test failures) See https://playwright.dev/docs/trace-viewer */
         trace: 'on',
-        viewport: {
-            width: 1080,
-            height: 720,
-        },
+        colorScheme: 'dark',
+        viewport: { width: 1280, height: 1024 },
         video: "on",
     },
 

@@ -1,4 +1,4 @@
-import { test, type FullConfig } from '@playwright/test';
+import { test, type FullConfig } from '../../fixtures';
 
 const { execSync } = require('node:child_process');
 const utils = require('../../global-utils');
@@ -6,7 +6,7 @@ const utils = require('../../global-utils');
 utils.loadEnv();
 
 test('Keycloak teardown', async () => {
-    if( process.env.PW_KEEP_SERVICE_RUNNNING === "true" ) {
+    if (process.env.PW_KEEP_SERVICE_RUNNNING === "true") {
         console.log("Keep Keycloak running");
     } else {
         console.log("Keycloak stopping");

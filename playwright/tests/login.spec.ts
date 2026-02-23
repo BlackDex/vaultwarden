@@ -1,4 +1,4 @@
-import { test, expect, type Page, type TestInfo } from '@playwright/test';
+import { test, expect, type Page, type TestInfo } from '../fixtures';
 import * as OTPAuth from "otpauth";
 
 import * as utils from "../global-utils";
@@ -12,8 +12,8 @@ test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
     await utils.startVault(browser, testInfo, {});
 });
 
-test.afterAll('Teardown', async ({}) => {
-    utils.stopVault();
+test.afterAll('Teardown', async ({ }) => {
+    await utils.stopVault();
 });
 
 test('Account creation', async ({ page }) => {
@@ -41,7 +41,7 @@ test('Authenticator 2fa', async ({ page }) => {
         await page.getByRole('button', { name: 'Log in with master password' }).click();
 
         await expect(page.getByRole('heading', { name: 'Verify your Identity' })).toBeVisible();
-        await page.getByLabel(/Verification code/).fill(totp.generate({timestamp}));
+        await page.getByLabel(/Verification code/).fill(totp.generate({ timestamp }));
         await page.getByRole('button', { name: 'Continue' }).click();
 
         await expect(page).toHaveTitle(/Vaultwarden Web/);

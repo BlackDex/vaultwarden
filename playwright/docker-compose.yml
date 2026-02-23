@@ -6,7 +6,42 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      args:
+        CARGO_PROFILE: dev
     entrypoint: /bin/bash
+    restart: "no"
+
+  cert_generator:
+    image: alpine:latest
+    profiles: ["playwright", "vaultwarden", "keycloak"]
+    container_name: cert_generator
+    volumes:
+      - ./certs:/ssl:rw
+    command:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache openssl ca-certificates
+        ls -al /ssl/
+        if [ ! -f /ssl/cert.pem ]; then
+          openssl req -x509 -newkey rsa:4096 -nodes -days 365 \
+            -keyout /ssl/key.pem \
+            -out /ssl/cert.pem \
+            -subj '/C=EU/ST=Test/L=Test/O=Vaultwarden/CN=localhost' \
+            -addext 'subjectAltName=DNS:localhost,DNS:vaultwarden,DNS:keycloak,IP:127.0.0.1'
+          ls -al /ssl/
+          echo -ne "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUROVENDQWgyZ0F3SUJBZ0lVRi9KdnhjRUdMT1JFVU9mME1KWkxhL0VSN1prd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0tERVNNQkFHQTFVRUF3d0piV2wwYlhCeWIzaDVNUkl3RUFZRFZRUUtEQWx0YVhSdGNISnZlSGt3SGhjTgpNalF3TnpJME1UZ3pNelV6V2hjTk16UXdOekkwTVRnek16VXpXakFvTVJJd0VBWURWUVFEREFsdGFYUnRjSEp2CmVIa3hFakFRQmdOVkJBb01DVzFwZEcxd2NtOTRlVENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0MKQVFvQ2dnRUJBSmlLYWhkT3REVitPcFU3ODhDNkFqd3FGTmJ0L1A0Yk1tbk1hQ2djNnBGZlExSjhBdE5aR1A3TAp5Z0p1aHVLbXhwdHd6SCtvNkxlWk9LZ1ZZU2VqUHBYVjd4R2hHU2dDc1MxMFVhNDJKSEhZZm5lc3ZzQXUra2xuCkJYMmQ0SmpSWndBbEJQNk1NL05BM0prOGFkcFpIbXhMYmJ5RXliUFY2YllGQUdiK0ZxTU9PQVpBVzh5dDRzZjcKL1RqUmNpTmpUMUY5QUlPeTRHOTlqM3JnWGJkOVBxNEFxTDdQMWRES213OGR6T3ZYRGNVUDFOS2ZlNTljekZZWQp6dElKcVl6NC91MW1PT1BiZEFGYzF3NHBUTVBHM1AvZWpKemRmYmNFL2cyMmZIWW5MTlp5WTdHTkkvYTE0OURvCk5EekFxWlVmK1F6eE9LR285S0RDNmFYRkMzVEJhbjBDQXdFQUFhTlhNRlV3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBVEJnTlZIU1VFRERBS0JnZ3JCZ0VGQlFjREFUQU9CZ05WSFE4QkFmOEVCQU1DQVFZd0hRWURWUjBPQkJZRQpGQmljM1dhVjVBUlNyc3hNUEF5VjhVU3k4dEg2TUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFCTWxJenJibzZpClBVZndLaUw0ZjVUeFM0UVJLMlF6QmJyV0RTMEtYeG0zcXVWTGt4cnBqcFJSZWxuSWFjUkFTaGIrV2x3L3UyTSsKcnVnbXVoOUxFTUVXUFd5d3owekZwYUd0VlY3VlB0VjczSXU0MnpiZnVCbi9kUGxha2lDcGVlREVJQmN2ME96bgozOUd3OVVUbnk2OWtJbmdDVXlWNEUxZC9LU1ZLNFVWY05YV0U1bmJacWl6My9KaXd0YXNvdnAxZlRTNTlWUjdPCjdkT2VVN2ZTOWc2RkVlR1A4aTcwZGdYdXBjUS9OQzhLcWtjRVBjdC9Md083VGNCWkNyUVFXMTB3MHhFTjEraSsKSnRiT3ZmMHlNUTVjRHdPSmtCR2l5Q0MrSWIxb3E1akVDckhhc3M5Z1N2L09aUUVOSjlSTGVtcHpLYkIvekRMdgpOVXpsT0x5S1ZBTFAKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=" \
+          base64 -d > /ssl/mitmproxy.pem
+          ls -al /ssl/
+          cat /ssl/cert.pem /ssl/mitmproxy.pem /etc/ssl/certs/ca-certificates.crt > /ssl/ca-certificates.crt
+          cat /ssl/ca-certificates.crt
+          ls -al /ssl/
+          echo 'Certificates generated'
+        else
+          echo 'Certificates already exist'
+        fi
+        chmod 0755 /ssl
+        chmod 0644 /ssl/*
     restart: "no"
 
   Vaultwarden:
@@ -14,6 +49,11 @@ services:
     container_name: playwright_oidc_vaultwarden-${ENV:-dev}
     image: playwright_oidc_vaultwarden-${ENV:-dev}
     network_mode: "host"
+    volumes:
+      - ./certs/:/ssl:ro
+      - ./certs/cert.pem:/etc/ssl/certs/vwcacert.pem:ro
+      - ./certs/mitmproxy.pem:/etc/ssl/certs/mitmproxy.pem:ro
+      - ./certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
     build:
       context: compose/warden
       dockerfile: Dockerfile
@@ -35,9 +75,17 @@ services:
       - SSO_FRONTEND
       - SSO_ONLY
       - SSO_SCOPES
+      - DOMAIN
+      - ROCKET_TLS
+      - SSL_CERT_DIR=/etc/ssl/certs/
+      # - SSL_CERT_FILE=/etc/ssl/certs/mitmproxy.pem
+      - HTTPS_PROXY=socks5://127.0.0.1:3128
     restart: "no"
     depends_on:
-      - VaultwardenPrebuild
+      VaultwardenPrebuild:
+        condition: service_completed_successfully
+      cert_generator:
+        condition: service_completed_successfully
 
   Playwright:
     profiles: ["playwright"]
@@ -47,19 +95,44 @@ services:
     build:
       context: .
       dockerfile: compose/playwright/Dockerfile
+      target: test
     environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
       - PW_WV_REPO_URL
       - PW_WV_COMMIT_HASH
+      - COMPOSE_PROGRESS
     restart: "no"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ..:/project
 
+  PlaywrightCodegen:
+    profiles: ["codegen"]
+    container_name: playwright_oidc_codegen
+    image: playwright_oidc_codegen
+    network_mode: "host"
+    build:
+      context: .
+      dockerfile: compose/playwright/Dockerfile
+      target: codegen
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - DISPLAY=:99
+      - VNC_PORT=5900
+      - NOVNC_PORT=6080
+      - SCREEN_RES=1920x1080
+      - COMPOSE_PROGRESS
+    restart: "no"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ..:/project
+
+
   Mariadb:
     profiles: ["playwright"]
     container_name: playwright_mariadb
-    image: mariadb:11.2.4
-    env_file: test.env
+    image: mariadb:12-noble
+    env_file: ${DC_ENV_FILE:-.env}
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       start_period: 10s
@@ -70,10 +143,10 @@ services:
   Mysql:
     profiles: ["playwright"]
     container_name: playwright_mysql
-    image: mysql:8.4.1
-    env_file: test.env
+    image: mysql:8
+    env_file: ${DC_ENV_FILE:-.env}
     healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       start_period: 10s
       interval: 10s
     ports:
@@ -82,8 +155,8 @@ services:
   Postgres:
     profiles: ["playwright"]
     container_name: playwright_postgres
-    image: postgres:16.3
-    env_file: test.env
+    image: postgres:18
+    env_file: ${DC_ENV_FILE:-.env}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       start_period: 20s
@@ -91,32 +164,43 @@ services:
     ports:
       - ${POSTGRES_PORT}:5432
 
-  Maildev:
-    profiles: ["vaultwarden", "maildev"]
-    container_name: maildev
-    image: timshel/maildev:3.0.4
-    ports:
-      - ${SMTP_PORT}:1025
-      - 1080:1080
-
   Keycloak:
     profiles: ["keycloak", "vaultwarden"]
     container_name: keycloak-${ENV:-dev}
-    image: quay.io/keycloak/keycloak:26.3.4
+    image: quay.io/keycloak/keycloak:26.5.4
     network_mode: "host"
+    volumes:
+      - ./certs/:/ssl:ro
+      - ./certs/cert.pem:/etc/ssl/certs/vwcacert.pem:ro
+      - ./certs/mitmproxy.pem:/etc/ssl/certs/mitmproxy.pem:ro
+      - ./certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
     command:
       - start-dev
     env_file: ${DC_ENV_FILE:-.env}
+    environment:
+      - SSL_CERT_DIR=/etc/ssl/certs/
+      - KC_HTTPS_CERTIFICATE_FILE=/ssl/cert.pem
+      - KC_HTTPS_CERTIFICATE_KEY_FILE=/ssl/key.pem
+    depends_on:
+      cert_generator:
+        condition: service_completed_successfully
 
   KeycloakSetup:
     profiles: ["keycloak", "vaultwarden"]
     container_name: keycloakSetup-${ENV:-dev}
     image: keycloak_setup-${ENV:-dev}
+    volumes:
+      - ./certs/:/ssl:ro
+      - ./certs/cert.pem:/etc/ssl/certs/vwcacert.pem:ro
+      - ./certs/mitmproxy.pem:/etc/ssl/certs/mitmproxy.pem:ro
+      - ./certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+    environment:
+      - SSL_CERT_DIR=/etc/ssl/certs/
     build:
       context: compose/keycloak
       dockerfile: Dockerfile
       args:
-        KEYCLOAK_VERSION: 26.3.4
+        KEYCLOAK_VERSION: 26.5.4
     network_mode: "host"
     depends_on:
       - Keycloak
