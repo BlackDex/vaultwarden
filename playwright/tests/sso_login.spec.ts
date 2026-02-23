@@ -1,4 +1,5 @@
-import { test, expect, type TestInfo } from '@playwright/test';
+import { test, expect, type TestInfo } from '../fixtures';
+
 
 import { logNewUser, logUser } from './setups/sso';
 import { activateTOTP, disableTOTP } from './setups/2fa';
@@ -13,8 +14,8 @@ test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
     });
 });
 
-test.afterAll('Teardown', async ({}) => {
-    utils.stopVault();
+test.afterAll('Teardown', async ({ }) => {
+    await utils.stopVault();
 });
 
 test('Account creation using SSO', async ({ page }) => {

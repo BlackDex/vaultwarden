@@ -1,6 +1,6 @@
 FROM playwright_oidc_vaultwarden_prebuilt AS prebuilt
 
-FROM node:22-trixie AS build
+FROM node:24-trixie-slim AS build
 
 ARG REPO_URL
 ARG COMMIT_HASH
