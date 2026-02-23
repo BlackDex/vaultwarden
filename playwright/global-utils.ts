@@ -1,6 +1,5 @@
-import { expect, type Browser, type TestInfo } from '@playwright/test';
+import { expect, type Browser, type TestInfo, type Page } from './fixtures';
 import { EventEmitter } from "events";
-import { type Mail, MailServer } from 'maildev';
 import { execSync } from 'node:child_process';
 
 import dotenv from 'dotenv';
@@ -9,7 +8,7 @@ import dotenvExpand from 'dotenv-expand';
 const fs = require("fs");
 const { spawn } = require('node:child_process');
 
-export function loadEnv(){
+export function loadEnv() {
     var myEnv = dotenv.config({ path: 'test.env', quiet: true });
     dotenvExpand.expand(myEnv);
 
@@ -32,7 +31,7 @@ export function loadEnv(){
     }
 }
 
-export async function waitFor(url: String, browser: Browser) {
+export async function waitFor(url: string, browser: Browser) {
     var ready = false;
     var context;
 
@@ -43,33 +42,45 @@ export async function waitFor(url: String, browser: Browser) {
             await page.waitForTimeout(500);
             const result = await page.goto(url);
             ready = result.status() === 200;
-        } catch(e) {
-            if( !e.message.includes("CONNECTION_REFUSED") ){
+        } catch (e) {
+            if (!e.message.includes("CONNECTION_REFUSED")) {
                 throw e;
             }
         } finally {
             await context.close();
         }
-    } while(!ready);
+    } while (!ready);
 }
 
-export function startComposeService(serviceName: String){
+export function startComposeService(serviceName: String) {
     console.log(`Starting ${serviceName}`);
-    execSync(`docker compose --profile playwright --env-file test.env  up -d ${serviceName}`);
+    execSync(
+        `docker compose --profile playwright --env-file test.env  up -d ${serviceName}`,
+        { stdio: 'inherit', env: { ...process.env } }
+    );
 }
 
-export function stopComposeService(serviceName: String){
+export function stopComposeService(serviceName: String) {
     console.log(`Stopping ${serviceName}`);
-    execSync(`docker compose --profile playwright --env-file test.env  stop ${serviceName}`);
+    execSync(
+        `docker compose --profile playwright --env-file test.env  stop ${serviceName}`,
+        { stdio: 'inherit', env: { ...process.env } }
+    );
 }
 
-function wipeSqlite(){
+function wipeSqlite() {
     console.log(`Delete Vaultwarden container to wipe sqlite`);
-    execSync(`docker compose --env-file test.env stop Vaultwarden`);
-    execSync(`docker compose --env-file test.env rm -f Vaultwarden`);
+    execSync(
+        `docker compose --env-file test.env stop Vaultwarden`,
+        { stdio: 'inherit', env: { ...process.env } }
+    );
+    execSync(
+        `docker compose --env-file test.env rm -f Vaultwarden`,
+        { stdio: 'inherit', env: { ...process.env } }
+    );
 }
 
-async function wipeMariaDB(){
+async function wipeMariaDB() {
     var mysql = require('mysql2/promise');
     var ready = false;
     var connection;
@@ -91,20 +102,20 @@ async function wipeMariaDB(){
         } catch (err) {
             console.log(`Error when wiping mariadb: ${err}`);
         } finally {
-            if( connection ){
+            if (connection) {
                 connection.end();
             }
         }
         await new Promise(r => setTimeout(r, 1000));
-    } while(!ready);
+    } while (!ready);
 }
 
-async function wipeMysqlDB(){
+async function wipeMysqlDB() {
     var mysql = require('mysql2/promise');
     var ready = false;
     var connection;
 
-    do{
+    do {
         try {
             connection = await mysql.createConnection({
                 user: process.env.MYSQL_USER,
@@ -121,15 +132,15 @@ async function wipeMysqlDB(){
         } catch (err) {
             console.log(`Error when wiping mysql: ${err}`);
         } finally {
-            if( connection ){
+            if (connection) {
                 connection.end();
             }
         }
         await new Promise(r => setTimeout(r, 1000));
-    } while(!ready);
+    } while (!ready);
 }
 
-async function wipePostgres(){
+async function wipePostgres() {
     const { Client } = require('pg');
 
     const client = new Client({
@@ -152,8 +163,8 @@ async function wipePostgres(){
     }
 }
 
-function dbConfig(testInfo: TestInfo){
-    switch(testInfo.project.name) {
+function dbConfig(testInfo: TestInfo) {
+    switch (testInfo.project.name) {
         case "postgres":
         case "sso-postgres":
             return { DATABASE_URL: `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@127.0.0.1:${process.env.POSTGRES_PORT}/${process.env.POSTGRES_DB}` };
@@ -162,7 +173,7 @@ function dbConfig(testInfo: TestInfo){
             return { DATABASE_URL: `mysql://${process.env.MARIADB_USER}:${process.env.MARIADB_PASSWORD}@127.0.0.1:${process.env.MARIADB_PORT}/${process.env.MARIADB_DATABASE}` };
         case "mysql":
         case "sso-mysql":
-            return { DATABASE_URL: `mysql://${process.env.MYSQL_USER}:${process.env.MYSQL_PASSWORD}@127.0.0.1:${process.env.MYSQL_PORT}/${process.env.MYSQL_DATABASE}`};
+            return { DATABASE_URL: `mysql://${process.env.MYSQL_USER}:${process.env.MYSQL_PASSWORD}@127.0.0.1:${process.env.MYSQL_PORT}/${process.env.MYSQL_DATABASE}` };
         case "sqlite":
         case "sso-sqlite":
             return { I_REALLY_WANT_VOLATILE_STORAGE: true };
@@ -175,8 +186,8 @@ function dbConfig(testInfo: TestInfo){
  *  All parameters passed in `env` need to be added to the docker-compose.yml
  **/
 export async function startVault(browser: Browser, testInfo: TestInfo, env = {}, resetDB: Boolean = true) {
-    if( resetDB ){
-        switch(testInfo.project.name) {
+    if (resetDB) {
+        switch (testInfo.project.name) {
             case "postgres":
             case "sso-postgres":
                 await wipePostgres();
@@ -198,32 +209,38 @@ export async function startVault(browser: Browser, testInfo: TestInfo, env = {},
         }
     }
 
+    const startEnv = { ...process.env, ...env, ...dbConfig(testInfo) };
+
     console.log(`Starting Vaultwarden`);
-    execSync(`docker compose --profile playwright --env-file test.env up -d Vaultwarden`, {
-        env: { ...env, ...dbConfig(testInfo) },
-    });
+    execSync(
+        `docker compose --profile playwright --env-file test.env up -d Vaultwarden`,
+        { env: startEnv, stdio: 'inherit' }
+    );
     await waitFor("/", browser);
     console.log(`Vaultwarden running on: ${process.env.DOMAIN}`);
 }
 
 export async function stopVault(force: boolean = false) {
-    if( force === false && process.env.PW_KEEP_SERVICE_RUNNNING === "true" ) {
+    if (force === false && process.env.PW_KEEP_SERVICE_RUNNNING === "true") {
         console.log(`Keep vaultwarden running on: ${process.env.DOMAIN}`);
     } else {
         console.log(`Vaultwarden stopping`);
-        execSync(`docker compose --profile playwright --env-file test.env stop Vaultwarden`);
+        execSync(
+            `docker compose --profile playwright --env-file test.env stop Vaultwarden`,
+            { stdio: 'inherit', env: { ...process.env } }
+        );
     }
 }
 
 export async function restartVault(page: Page, testInfo: TestInfo, env, resetDB: Boolean = true) {
-    stopVault(true);
+    await stopVault(true);
     return startVault(page.context().browser(), testInfo, env, resetDB);
 }
 
 export async function checkNotification(page: Page, hasText: string) {
     await expect(page.locator('bit-toast', { hasText })).toBeVisible();
     try {
-        await page.locator('bit-toast', { hasText }).getByRole('button', { name: 'Close' }).click({force: true, timeout: 10_000});
+        await page.locator('bit-toast', { hasText }).getByRole('button', { name: 'Close' }).click({ force: true, timeout: 10_000 });
     } catch (error) {
         console.log(`Closing notification failed but it should now be invisible (${error})`);
     }
@@ -235,7 +252,7 @@ export async function cleanLanding(page: Page) {
     await expect(page.getByRole('button').nth(0)).toBeVisible();
 
     const logged = await page.getByRole('button', { name: 'Log out' }).count();
-    if( logged > 0 ){
+    if (logged > 0) {
         await page.getByRole('button', { name: 'Log out' }).click();
         await page.getByRole('button', { name: 'Log out' }).click();
     }
@@ -253,7 +270,7 @@ export async function ignoreExtension(page: Page) {
     await page.waitForLoadState('domcontentloaded');
 
     try {
-        await page.getByRole('button', { name: 'Add it later' }).click({timeout: 5_000});
+        await page.getByRole('button', { name: 'Add it later' }).click({ timeout: 5_000 });
         await page.getByRole('link', { name: 'Skip to web app' }).click();
     } catch (error) {
         console.log('Extension setup not visible. Continuing');

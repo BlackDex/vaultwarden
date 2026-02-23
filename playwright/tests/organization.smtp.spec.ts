@@ -1,18 +1,19 @@
-import { test, expect, type TestInfo } from '@playwright/test';
+import { test, expect, type TestInfo } from '../fixtures';
 import { MailDev } from 'maildev';
 
 import * as utils from '../global-utils';
 import * as orgs from './setups/orgs';
 import { createAccount, logUser } from './setups/user';
+import { MailBuffer } from 'maildev/dist/lib/mailbuffer';
 
 let users = utils.loadEnv();
 
-let mailServer, mail1Buffer, mail2Buffer, mail3Buffer;
+let mailServer: MailDev, mail1Buffer: MailBuffer, mail2Buffer: MailBuffer, mail3Buffer: MailBuffer;
 
 test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
     mailServer = new MailDev({
-        port: process.env.MAILDEV_SMTP_PORT,
-        web: { port: process.env.MAILDEV_HTTP_PORT },
+        port: parseInt(process.env.MAILDEV_SMTP_PORT, 10),
+        web: { port: parseInt(process.env.MAILDEV_WEB_PORT, 10) },
     })
 
     await mailServer.listen();
@@ -27,8 +28,8 @@ test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
     mail3Buffer = mailServer.buffer(users.user3.email);
 });
 
-test.afterAll('Teardown', async ({}, testInfo: TestInfo) => {
-    utils.stopVault(testInfo);
+test.afterAll('Teardown', async ({ }) => {
+    await utils.stopVault();
     [mail1Buffer, mail2Buffer, mail3Buffer, mailServer].map((m) => m?.close());
 });
 
@@ -62,7 +63,7 @@ test('invited with new account', async ({ page }) => {
         await page.getByRole('button', { name: 'Create account' }).click();
         await utils.checkNotification(page, 'Your new account has been created');
 
-        await utils.checkNotification(page, 'Invitation accepted');
+        await utils.checkNotification(page, 'Success Successfully accepted your invitation');
         await utils.ignoreExtension(page);
 
         // Redirected to the vault
@@ -93,7 +94,7 @@ test('invited with existing account', async ({ page }) => {
     await page.getByLabel('Master password').fill(users.user3.password);
     await page.getByRole('button', { name: 'Log in with master password' }).click();
 
-    await utils.checkNotification(page, 'Invitation accepted');
+    await utils.checkNotification(page, 'Success Successfully accepted your invitation');
     await utils.ignoreExtension(page);
 
     // We are now in the default vault page

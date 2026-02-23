@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+# Playwright Codegen image – extends the base Playwright image with:
+#   • TigerVNC (Xvnc): virtual X11 display + built-in VNC server in one process
+#   • noVNC + websockify: browser-accessible remote desktop via HTTP
+#   • Fluxbox: minimal window manager for resizing Playwright windows
+#
+# Usage: open  http://localhost:${NOVNC_PORT}/vnc.html  in any browser.
+# No X server, VNC client, or display software needed on the host.
+
+FROM playwright_oidc_playwright
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# tigervnc-standalone-server → provides Xvnc (X11 + VNC in one process)
+# novnc                      → web VNC client; pulls in python3-websockify
+#                              which provides the `websockify` command
+# fluxbox                    → lightweight WM; lets users drag/resize windows
+# dbus-x11                   → satisfies dbus requirements of some GUI apps
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        dbus-x11 \
+        fluxbox \
+        novnc \
+        tigervnc-standalone-server \
+    && rm -rf /var/lib/apt/lists/*
+
+# All settings are overridable at `docker compose run` time via -e
+ENV DISPLAY=:99
+ENV VNC_PORT=5900
+ENV NOVNC_PORT=6080
+ENV SCREEN_RES=1920x1080
+
+COPY compose/playwright/entrypoint-codegen.sh /entrypoint-codegen.sh
+RUN chmod +x /entrypoint-codegen.sh
+
+# VNC port (informational; only needed if NOT using network_mode: host)
+EXPOSE 5900 6080
+
+ENTRYPOINT ["/entrypoint-codegen.sh"]
+# Default command → playwright codegen; override with any playwright subcommand
+CMD ["codegen"]

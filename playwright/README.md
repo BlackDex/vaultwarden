@@ -33,10 +33,20 @@ To force a rebuild of the Playwright image:
 DOCKER_BUILDKIT=1 docker compose --env-file test.env build Playwright
 ```
 
-To access the UI to easily run test individually and debug if needed (this will not work in docker):
+To update the `package-lock.json` after modifying the `package.json` versions.
 
 ```bash
-npx playwright test --ui
+docker run -u1000:1000 --rm -it -v "${PWD}:/app:rw" node:24-trixie-slim sh -c "cd /app ; npm install"
+```
+
+To access the UI to easily run test individually and debug if needed:
+
+```bash
+# General
+docker compose --profile playwright --env-file test.env run --rm -p 8181:8181 Playwright test --ui --ui-host=0.0.0.0 --ui-port=8181
+
+# A specific project
+docker compose --profile playwright --env-file test.env run --rm -p 8181:8181 Playwright test --ui --ui-host=0.0.0.0 --ui-port=8181 --project=sqlite
 ```
 
 ### DB
@@ -92,7 +102,12 @@ This does not start the server, you will need to start it manually.
 
 ```bash
 DOCKER_BUILDKIT=1 docker compose --profile playwright --env-file test.env up Vaultwarden
+
+# Locally
 npx playwright codegen "http://127.0.0.1:8003"
+
+# Via Docker
+DOCKER_BUILDKIT=1 docker compose --profile playwright --env-file test.env run Playwright npx playwright codegen "https://127.0.0.1:8003"
 ```
 
 ## Override web-vault
