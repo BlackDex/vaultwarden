@@ -1,4 +1,4 @@
-import { expect, type Page, Test } from '@playwright/test';
+import { expect, type Page, Test } from '../../fixtures';
 import { type MailBuffer, MailServer } from 'maildev';
 import * as OTPAuth from "otpauth";
 
@@ -39,7 +39,7 @@ export async function logNewUser(
         });
 
         await utils.checkNotification(page, 'Account successfully created!');
-        await utils.checkNotification(page, 'Invitation accepted');
+        await utils.checkNotification(page, 'Successfully accepted');
 
         await utils.ignoreExtension(page);
 
@@ -48,7 +48,7 @@ export async function logNewUser(
             await expect(page.getByTitle('All vaults', { exact: true })).toBeVisible();
         });
 
-        if( options.mailBuffer ){
+        if (options.mailBuffer) {
             let mailBuffer = options.mailBuffer;
             await test.step('Check emails', async () => {
                 await mailBuffer.expect((m) => m.subject === "Welcome");
@@ -66,7 +66,7 @@ export async function logUser(
     page: Page,
     user: { email: string, password: string },
     options: {
-        mailBuffer ?: MailBuffer,
+        mailBuffer?: MailBuffer,
         totp?: OTPAuth.TOTP,
         mail2fa?: boolean,
     } = {}
@@ -90,18 +90,18 @@ export async function logUser(
             await page.getByRole('button', { name: 'Sign In' }).click();
         });
 
-        if( options.totp || options.mail2fa ){
+        if (options.totp || options.mail2fa) {
             let code;
 
             await test.step('2FA check', async () => {
                 await expect(page.getByRole('heading', { name: 'Verify your Identity' })).toBeVisible();
 
-                if( options.totp ) {
+                if (options.totp) {
                     const totp = options.totp;
                     let timestamp = Date.now(); // Needed to use the next token
                     timestamp = timestamp + (totp.period - (Math.floor(timestamp / 1000) % totp.period) + 1) * 1000;
-                    code = totp.generate({timestamp});
-                } else if( options.mail2fa ){
+                    code = totp.generate({ timestamp });
+                } else if (options.mail2fa) {
                     code = await retrieveEmailCode(test, page, mailBuffer);
                 }
 
@@ -124,7 +124,7 @@ export async function logUser(
             await expect(page.getByTitle('All vaults', { exact: true })).toBeVisible();
         });
 
-        if( mailBuffer ){
+        if (mailBuffer) {
             await test.step('Check email', async () => {
                 await mailBuffer.expect((m) => m.subject.includes("New Device Logged"));
             });

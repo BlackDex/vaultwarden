@@ -1,4 +1,4 @@
-import { test, expect, type TestInfo } from '@playwright/test';
+import { test, expect, type TestInfo } from '../../fixtures';
 
 const { exec } = require('node:child_process');
 const utils = require('../../global-utils');

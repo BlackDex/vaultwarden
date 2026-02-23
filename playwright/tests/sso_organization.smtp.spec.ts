@@ -1,18 +1,20 @@
-import { test, expect, type TestInfo } from '@playwright/test';
+import { test, expect, type TestInfo } from '../fixtures';
+
 import { MailDev } from 'maildev';
 
 import * as utils from "../global-utils";
 import * as orgs from './setups/orgs';
 import { logNewUser, logUser } from './setups/sso';
+import { MailBuffer } from 'maildev/dist/lib/mailbuffer';
 
 let users = utils.loadEnv();
 
-let mailServer, mail1Buffer, mail2Buffer, mail3Buffer;
+let mailServer: MailDev, mail1Buffer: MailBuffer, mail2Buffer: MailBuffer, mail3Buffer: MailBuffer;
 
 test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
     mailServer = new MailDev({
-        port: process.env.MAILDEV_SMTP_PORT,
-        web: { port: process.env.MAILDEV_HTTP_PORT },
+        port: parseInt(process.env.MAILDEV_SMTP_PORT, 10),
+        web: { port: parseInt(process.env.MAILDEV_WEB_PORT, 10) },
     })
 
     await mailServer.listen();
@@ -29,8 +31,8 @@ test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
     mail3Buffer = mailServer.buffer(users.user3.email);
 });
 
-test.afterAll('Teardown', async ({}) => {
-    utils.stopVault();
+test.afterAll('Teardown', async ({ }) => {
+    await utils.stopVault();
     [mail1Buffer, mail2Buffer, mail3Buffer, mailServer].map((m) => m?.close());
 });
 

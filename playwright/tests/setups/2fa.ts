@@ -1,10 +1,10 @@
-import { expect, type Page, Test } from '@playwright/test';
+import { expect, type Page, Test } from '../../fixtures';
 import { type MailBuffer } from 'maildev';
 import * as OTPAuth from "otpauth";
 
 import * as utils from '../../global-utils';
 
-export async function activateTOTP(test: Test, page: Page, user: { name: string, password: string }): OTPAuth.TOTP {
+export async function activateTOTP(test: Test, page: Page, user: { name: string, password: string }): Promise<OTPAuth.TOTP> {
     return await test.step('Activate TOTP 2FA', async () => {
         await page.getByRole('button', { name: user.name }).click();
         await page.getByRole('menuitem', { name: 'Account settings' }).click();
@@ -19,8 +19,8 @@ export async function activateTOTP(test: Test, page: Page, user: { name: string,
 
         await page.getByLabel(/Verification code/).fill(totp.generate());
         await page.getByRole('button', { name: 'Turn on' }).click();
-        await page.getByRole('heading', { name: 'Turned on', exact: true });
         await page.getByLabel('Close').click();
+        await expect(page.getByRole('heading', { name: 'Authenticator app Turned on' })).toBeVisible();
 
         return totp;
     })
@@ -59,11 +59,11 @@ export async function activateEmail(test: Test, page: Page, user: { name: string
     await test.step('input code', async () => {
         await page.getByLabel('2. Enter the resulting 6').fill(code);
         await page.getByRole('button', { name: 'Turn on' }).click();
-        await page.getByRole('heading', { name: 'Turned on', exact: true });
+        await expect(page.getByRole('heading', { name: 'Email Turned on' })).toBeVisible();
     });
 }
 
-export async function retrieveEmailCode(test: Test, page: Page, mailBuffer: MailBuffer): string {
+export async function retrieveEmailCode(test: Test, page: Page, mailBuffer: MailBuffer): Promise<string> {
     return await test.step('retrieve code', async () => {
         const codeMail = await mailBuffer.expect((mail) => mail.subject.includes("Login Verification Code"));
         const page2 = await page.context().newPage();
