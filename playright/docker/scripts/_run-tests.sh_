@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+COMPOSE_DIR="${SCRIPT_DIR}/.."
+DB="${1:-sqlite}"
+SSO="${SSO:-false}"
+
+case "$DB" in
+  sqlite|mariadb|mysql|postgres) ;;
+  *) echo "Usage: $0 [sqlite|mariadb|mysql|postgres]" && exit 1 ;;
+esac
+
+OVERLAYS="-f compose.yml -f compose.${DB}.yml"
+[ "$SSO" = "true" ] && OVERLAYS="${OVERLAYS} -f compose.dex.yml"
+
+cd "${COMPOSE_DIR}"
+
+# shellcheck disable=SC2086
+docker compose ${OVERLAYS} up --build --abort-on-container-exit --exit-code-from playwright
+
+# shellcheck disable=SC2086
+docker compose ${OVERLAYS} down -v --remove-orphans

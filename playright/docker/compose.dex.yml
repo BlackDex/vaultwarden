@@ -1,0 +1,39 @@
+---
+services:
+  dex:
+    container_name: playwright_dex
+    image: ghcr.io/dexidp/dex:latest-alpine
+    depends_on:
+      cert-gen:
+        condition: service_completed_successfully
+    volumes:
+      - ./dex/config.yml:/etc/dex/config.yml:ro
+      - certs:/certs:ro
+    command: ["dex", "serve", "/etc/dex/config.yml"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "https://localhost:5556/dex/.well-known/openid-configuration",
+          "--no-check-certificate",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  vaultwarden:
+    environment:
+      SSO_ENABLED: "true"
+      SSO_ISSUER_URL: https://dex:5556/dex
+      SSO_CLIENT_ID: test-client
+      SSO_CLIENT_SECRET: test-client-secret
+
+  playwright:
+    depends_on:
+      dex:
+        condition: service_healthy
+    environment:
+      SSO_ENABLED: "true"
+      SSO_ISSUER_URL: https://dex:5556/dex

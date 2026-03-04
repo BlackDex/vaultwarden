@@ -1,0 +1,89 @@
+---
+# Internal network for docker-proxy
+networks:
+  playwright_internal:
+    driver: bridge
+
+# Shared volumes
+volumes:
+  playwright-certs:
+
+services:
+  # ── Init: generate certs once into a shared volume ──────────────────────────
+  cert_gen:
+    container_name: playwright_cert_gen
+    image: alpine/openssl:latest
+    volumes:
+      - playwright-certs:/certs
+      - ./scripts/generate-certs.sh:/generate-certs.sh:ro
+    entrypoint: ["sh", "/generate-certs.sh"]
+
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      CONTAINERS: 1
+      ALLOW_START: 1
+      ALLOW_STOP: 1
+    networks:
+      - playwright_internal
+
+  # ── Application under test ───────────────────────────────────────────────────
+  vaultwarden:
+    container_name: playwright_vaultwarden
+    build:
+      context: ../.. # project root where Dockerfile lives
+      dockerfile: Dockerfile
+      args:
+        CARGO_PROFILE: dev
+    depends_on:
+      cert_gen:
+        condition: service_completed_successfully
+    volumes:
+      - playwright-certs:/certs:ro
+    environment:
+      SSL_CERT_FILE: /certs/ca.crt
+
+  # ── Mail: MailPit (SMTP sink + REST API for token extraction) ────────────────
+  mailpit:
+    container_name: playwright_mailpit
+    image: axllent/mailpit:latest
+    environment:
+      MP_QUIET: "true"
+      # MP_VERBOSE: "true"
+      MP_DISABLE_WAL: "true"
+      MP_SMTP_DISABLE_RDNS: "true"
+      MP_ALLOW_UNTRUSTED_TLS: "true"
+      MP_DISABLE_VERSION_CHECK: "true"
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+      MP_SMTP_BIND_ADDR: "0.0.0.0:1026"
+      MP_UI_BIND_ADDR: "0.0.0.0:8026"
+    ports:
+      - 127.0.0.1:8026:8026/tcp
+
+  # ── Playwright test runner ───────────────────────────────────────────────────
+  playwright:
+    container_name: playwright_base
+    build:
+      context: .. # playwright/ directory
+    depends_on:
+      vaultwarden:
+        condition: service_started
+      mailpit:
+        condition: service_healthy
+      cert_gen:
+        condition: service_completed_successfully
+    volumes:
+      - playwright-certs:/certs:ro
+      - ../test-results:/app/test-results
+    environment:
+      BASE_URL: https://vaultwarden:8003
+      MAILPIT_API_URL: http://mailpit:8026
+      SSO_ISSUER_URL: https://dex:5556/dex
+      NODE_EXTRA_CA_CERTS: /certs/ca.crt
+      SSL_CERT_FILE: /certs/ca.crt
+    networks:
+      - playwright_internal
+      - default
