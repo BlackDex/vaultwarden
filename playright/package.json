@@ -1,0 +1,22 @@
+{
+    "name": "scenarios",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {},
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@playwright/test": "1.58.2",
+        "dotenv": "17.3.1",
+        "dotenv-expand": "12.0.3",
+        "mailpit-api": "1.7.2",
+        "dockerode": "4.0.10"
+    },
+    "dependencies": {
+        "mysql2": "3.20.0",
+        "otpauth": "9.5.0",
+        "pg": "8.20.0"
+    }
+}

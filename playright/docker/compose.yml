@@ -1,0 +1,125 @@
+---
+name: playwright
+
+# Internal network for docker-proxy
+networks:
+  internal:
+    driver: bridge
+
+# Shared volumes
+volumes:
+  certs:
+
+services:
+  cert_gen:
+    profiles: ["init"]
+    restart: no
+    container_name: cert_gen
+    image: alpine/openssl:latest
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    volumes:
+      - certs:/certs
+      - ./scripts/generate-certs.sh:/generate-certs.sh:ro
+    entrypoint: ["sh", "/generate-certs.sh"]
+
+  docker_proxy:
+    container_name: docker_proxy
+    image: ghcr.io/wollomatic/socket-proxy:1
+    group_add:
+      - "${DOCKER_GID:-0}"
+    user: "65534:${DOCKER_GID:-0}"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    volumes:
+      - "${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock:ro"
+    networks:
+      - internal
+    command:
+      - '-loglevel=debug'
+      - '-listenip=0.0.0.0'
+      - '-allowfrom=playwright'
+      - '-allowGET=/(version|containers/.*)'
+      - '-allowPOST=/containers/[a-zA-Z0-9_.-]+/(stop|start)'
+
+  vaultwarden:
+    container_name: vaultwarden
+    build:
+      context: ../.. # project root where the Vaultwarden Dockerfile lives
+      dockerfile: Dockerfile
+      args:
+        CARGO_PROFILE: dev
+    volumes:
+      - certs:/certs:ro
+    environment:
+      LOG_LEVEL: DEBUG
+      SSL_CERT_FILE: /certs/ca.crt
+      DOMAIN: https://vaultwarden:8003
+      ROCKET_PORT: 8003
+      ROCKET_TLS: '{certs="/certs/server.crt",key="/certs/server.key"}'
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    healthcheck:
+      test: [CMD-SHELL, "/healthcheck.sh"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  mailpit:
+    container_name: mailpit
+    image: axllent/mailpit:latest
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    environment:
+      MP_QUIET: "true"
+      # MP_VERBOSE: "true"
+      MP_DISABLE_WAL: "true"
+      MP_SMTP_DISABLE_RDNS: "true"
+      MP_ALLOW_UNTRUSTED_TLS: "true"
+      MP_DISABLE_VERSION_CHECK: "true"
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+      MP_SMTP_BIND_ADDR: "0.0.0.0:1026"
+      MP_UI_BIND_ADDR: "0.0.0.0:8026"
+    ports:
+      - 127.0.0.1:8026:8026/tcp
+
+  playwright:
+    container_name: playwright
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    build:
+      context: ..
+    depends_on:
+      vaultwarden:
+        condition: service_started
+      mailpit:
+        condition: service_healthy
+      docker_proxy:
+        condition: service_started
+    volumes:
+      - certs:/certs:ro
+      - ../test-results:/app/test-results
+    environment:
+      NODE_TLS_REJECT_UNAUTHORIZED: 0
+      DOCKER_HOST: tcp://docker_proxy:2375
+      BASE_URL: https://vaultwarden:8003
+      MAILPIT_API_URL: http://mailpit:8026
+      SSO_ISSUER_URL: https://dex:5556/dex
+      NODE_EXTRA_CA_CERTS: /certs/ca.crt
+      SSL_CERT_FILE: /certs/ca.crt
+    networks:
+      - internal
+      - default

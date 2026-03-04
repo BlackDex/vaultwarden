@@ -1,0 +1,21 @@
+project/
+├── Dockerfile                             ← main app image
+├── playwright/
+│   ├── tests/                             ← your existing tests
+│   ├── playwright.config.ts
+│   ├── package.json
+│   ├── Dockerfile                         ← playwright runner image
+│   └── docker/
+│       ├── docker-compose.yml             ← base: app, dex, maildev, cert-gen, playwright
+│       ├── docker-compose.sqlite.yml      ← SQLite overlay
+│       ├── docker-compose.mysql.yml       ← MariaDB overlay
+│       ├── docker-compose.postgres.yml    ← PostgreSQL overlay
+│       ├── certs/                         ← generated at runtime (git-ignored!)
+│       ├── scripts/
+│       │   ├── generate-certs.sh          ← cert generation script
+│       │   ├── playwright-entrypoint.sh   ← trusts CA before running tests
+│       │   └── run-tests.sh               ← local dev helper
+│       ├── nginx/
+│       │   └── dex.conf                   ← nginx SSL proxy for Dex
+│       └── dex/
+│           └── config.yml                 ← Dex OIDC config

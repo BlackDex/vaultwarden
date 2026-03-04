@@ -1,0 +1,8 @@
+---
+services:
+  playwright:
+    command: npx playwright test --ui --ui-host=0.0.0.0 --ui-port=8181
+    ports:
+      - 127.0.0.1:8181:8181/tcp
+    stdin_open: true   # keep stdin open so the UI process doesn't exit
+    tty: true

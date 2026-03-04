@@ -1,0 +1,17 @@
+---
+volumes:
+  sqlite_data:
+
+services:
+  vaultwarden:
+    volumes:
+      - sqlite_data:/dbdata:rw
+    environment:
+      I_REALLY_WANT_VOLATILE_STORAGE: "true"
+      DATABASE_URL: "/dbdata/vaultwarden.sqlite3"
+
+  playwright:
+    volumes:
+      - sqlite_data:/dbdata:rw
+    environment:
+      DB_TYPE: sqlite
