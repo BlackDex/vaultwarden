@@ -1,0 +1,97 @@
+import { test, expect, type TestInfo } from '../fixtures';
+import { MailpitServer } from '../mailpit';
+
+const utils = require('../global-utils');
+import { createAccount, logUser } from './setups/user';
+import { activateEmail, retrieveEmailCode, disableEmail } from './setups/2fa';
+
+let users = utils.loadEnv();
+
+let mailServer: MailpitServer;
+
+test.beforeAll('Setup', async ({ browser }, testInfo: TestInfo) => {
+    mailServer = new MailpitServer();
+    await mailServer.listen(); // clears messages
+
+    await utils.startVault(browser, testInfo, {
+        SMTP_HOST: process.env.MAILPIT_HOST,
+        SMTP_FROM: process.env.PW_SMTP_FROM,
+    });
+});
+
+test.afterAll('Teardown', async ({ }) => {
+    utils.stopVault();
+    await mailServer.close();
+});
+
+test('Account creation', async ({ page }) => {
+    const mailBuffer = mailServer.buffer(users.user1.email);
+
+    await createAccount(test, page, users.user1, mailBuffer);
+
+    mailBuffer.close();
+});
+
+test('Login', async ({ context, page }) => {
+    const mailBuffer = mailServer.buffer(users.user1.email);
+
+    await logUser(test, page, users.user1, mailBuffer);
+
+    await test.step('verify email', async () => {
+        await page.getByText('Verify your account\'s email').click();
+        await expect(page.getByText('Verify your account\'s email')).toBeVisible();
+        await page.getByRole('button', { name: 'Send email' }).click();
+
+        await utils.checkNotification(page, 'Check your email inbox for a verification link');
+
+        const verify = await mailBuffer.expect((m) => m.subject === "Verify Your Email");
+        expect(verify.from[0]?.address).toBe(process.env.PW_SMTP_FROM);
+
+        const page2 = await context.newPage();
+        await page2.setContent(verify.html);
+        const link = await page2.getByTestId("verify").getAttribute("href");
+        await page2.close();
+
+        await page.goto(link);
+        await utils.checkNotification(page, 'Account email verified');
+    });
+
+    mailBuffer.close();
+});
+
+test('Activate 2fa', async ({ page }) => {
+    const emails = mailServer.buffer(users.user1.email);
+
+    await logUser(test, page, users.user1);
+
+    await activateEmail(test, page, users.user1, emails);
+
+    emails.close();
+});
+
+test('2fa', async ({ page }) => {
+    const emails = mailServer.buffer(users.user1.email);
+
+    await test.step('login', async () => {
+        await page.goto('/');
+
+        await page.getByLabel(/Email address/).fill(users.user1.email);
+        await page.getByRole('button', { name: 'Continue' }).click();
+        await page.getByLabel('Master password').fill(users.user1.password);
+        await page.getByRole('button', { name: 'Log in with master password' }).click();
+
+        await expect(page.getByRole('heading', { name: 'Verify your Identity' })).toBeVisible();
+        const code = await retrieveEmailCode(test, page, emails);
+        await page.getByLabel(/Verification code/).fill(code);
+        await page.getByRole('button', { name: 'Continue' }).click();
+
+        await page.getByRole('button', { name: 'Add it later' }).click();
+        await page.getByRole('link', { name: 'Skip to web app' }).click();
+
+        await expect(page).toHaveTitle(/Vaults/);
+    })
+
+    await disableEmail(test, page, users.user1);
+
+    emails.close();
+});

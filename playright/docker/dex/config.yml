@@ -1,0 +1,41 @@
+issuer: https://dex:5556/dex
+
+storage:
+  type: memory
+
+web:
+  https: 0.0.0.0:5556
+  tlsCert: /certs/server.crt
+  tlsKey:  /certs/server.key
+
+logger:
+  level: debug
+  format: text
+
+oauth2:
+  skipApprovalScreen: true
+  responseTypes: [code]
+
+staticClients:
+  - id: test-client
+    secret: test-client-secret
+    name: "Test App"
+    redirectURIs:
+      - https://vaultwarden:8003/sso/callback
+      - https://localhost:8003/sso/callback
+
+staticPasswords:
+  - email: test@example.com
+    username: test
+    userID: "00000000-0000-0000-0000-000000000001"
+    hash: "$2a$12$TVh4ndJG/IRaEp9p.zHVluaUVpeG9DLsHMT3ZgI34TyuWDlXyFgZG"
+
+  - email: test2@example.com
+    username: test2
+    userID: "00000000-0000-0000-0000-000000000002"
+    hash: "$2a$12$TVh4ndJG/IRaEp9p.zHVluaUVpeG9DLsHMT3ZgI34TyuWDlXyFgZG"
+
+  - email: test3@example.com
+    username: test3
+    userID: "00000000-0000-0000-0000-000000000003"
+    hash: "$2a$12$TVh4ndJG/IRaEp9p.zHVluaUVpeG9DLsHMT3ZgI34TyuWDlXyFgZG"

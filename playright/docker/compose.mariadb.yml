@@ -1,0 +1,36 @@
+---
+volumes:
+  mariadb_data:
+
+services:
+  mariadb:
+    container_name: mariadb
+    image: mariadb:12-noble
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: testdb
+      MARIADB_USER: testuser
+      MARIADB_PASSWORD: testpass
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    volumes:
+      - mariadb_data:/var/lib/mysql/
+
+  vaultwarden:
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "mysql://testuser:testpass@mariadb:3306/testdb"
+
+  playwright:
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - mariadb_data:/dbdata
+    environment:
+      DB_TYPE: mysql
